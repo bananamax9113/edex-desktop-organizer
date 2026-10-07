@@ -614,7 +614,7 @@
     if (bootLogLoaded) return;
     bootLogLoaded = true;
     try {
-      const res = await fetch("../../src/assets/misc/boot_log.txt");
+      const res = await fetch("assets/misc/boot_log.txt");
       const text = decodeBootLog(await res.text());
       const set = new Set(bootGlyphs.split(""));
       for (const ch of text) {
