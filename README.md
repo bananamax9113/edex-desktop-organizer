@@ -31,7 +31,7 @@
 
 ### 日曆、時鐘與代碼雨
 
-月曆格顯示澳門假期與事項預覽；時鐘為點陣 LED；可疊加 Matrix 風格代碼雨。
+月曆格標示假期與事項預覽；時鐘為點陣 LED；可疊加 Matrix 風格代碼雨。
 
 
 
@@ -67,7 +67,7 @@ npm install
 npm run dist
 ```
 
-產出：`dist/eDEX-Desktop-Organizer-Setup-1.0.0.exe`（NSIS，可改安裝目錄）。
+產出：`dist/eDEX-Desktop-Organizer-Setup-<version>.exe`（NSIS，可改安裝目錄）。
 
 ## 發佈
 
