@@ -1,0 +1,77 @@
+{
+  "name": "edex-desktop-organizer",
+  "productName": "eDEX Desktop Organizer",
+  "version": "1.0.0",
+  "description": "Desktop organizer using the eDEX-UI sci-fi HUD layout",
+  "main": "main.js",
+  "author": "bananamax9113",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bananamax9113/edex-desktop-organizer.git"
+  },
+  "scripts": {
+    "prepare-assets": "node scripts/prepare-assets.js",
+    "prestart": "node scripts/prepare-assets.js",
+    "start": "electron .",
+    "predist": "node scripts/prepare-assets.js",
+    "dist": "electron-builder --win nsis --x64",
+    "dist:dir": "electron-builder --win dir --x64"
+  },
+  "license": "GPL-3.0",
+  "devDependencies": {
+    "electron": "^32.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.edex.desktop-organizer",
+    "productName": "eDEX Desktop Organizer",
+    "copyright": "Copyright © eDEX Desktop Organizer",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "lib/**/*",
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "forceCodeSigning": false,
+    "artifactName": "eDEX-Desktop-Organizer-Setup-${version}.${ext}",
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false,
+      "verifyUpdateCodeSignature": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "eDEX Desktop Organizer",
+      "deleteAppDataOnUninstall": false,
+      "installerLanguages": [
+        "zh_TW",
+        "en_US"
+      ],
+      "language": "1028"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "bananamax9113",
+        "repo": "edex-desktop-organizer"
+      }
+    ]
+  }
+}
