@@ -33,7 +33,7 @@
 
 月曆格顯示澳門假期與事項預覽；時鐘為點陣 LED；可疊加 Matrix 風格代碼雨。
 
-![日曆與時鐘](docs/screenshots/02-calendar-clock.png)
+
 
 ### 系統桌面容器
 
