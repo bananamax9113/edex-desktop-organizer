@@ -665,7 +665,12 @@
 
     const drawWave = (canvas, d, theme) => {
       if (!canvas) return;
-      const ctx = canvas.getContext("2d");
+      let ctx = canvas._ddjCtx;
+      if (!ctx) {
+        ctx = canvas.getContext("2d", { alpha: true, desynchronized: true }) || canvas.getContext("2d");
+        canvas._ddjCtx = ctx;
+        canvas.style.transform = "translateZ(0)";
+      }
       if (!ctx) return;
       const w = canvas.width;
       const h = canvas.height;
@@ -737,22 +742,25 @@
       if (jogEls[side]) jogEls[side].classList.toggle("spinning", d.playing);
     };
 
+    const anyPlaying = () => decks.L.playing || decks.R.playing;
+
     const tick = (ts) => {
       if (!document.getElementById("mod_ddj")) {
         state.ddjRaf = null;
         return;
       }
-      state.ddjRaf = requestAnimationFrame(tick);
-      if (document.visibilityState === "hidden") {
+      if (document.visibilityState === "hidden" || !anyPlaying()) {
+        state.ddjRaf = null;
         lastTs = 0;
         return;
       }
-      // Cap ~30 fps for the whole DDJ loop
-      if (lastTs && ts - lastTs < 33) return;
-      const dt = lastTs ? Math.min(0.08, (ts - lastTs) / 1000) : 0.016;
+      state.ddjRaf = requestAnimationFrame(tick);
+      // Cap ~12 fps — jog uses CSS transform (GPU); canvas waves are throttled further.
+      if (lastTs && ts - lastTs < 80) return;
+      const dt = lastTs ? Math.min(0.1, (ts - lastTs) / 1000) : 0.016;
       lastTs = ts;
 
-      if (!themeAt || ts - themeAt > 1200) {
+      if (!themeAt || ts - themeAt > 2000) {
         cachedTheme = themeRgb();
         themeAt = ts;
       }
@@ -764,22 +772,19 @@
         applySpinOnly(side);
       });
 
-      // Text/BPM/time: ~5 Hz
-      if (!lastUi || ts - lastUi > 200) {
+      if (!lastUi || ts - lastUi > 250) {
         lastUi = ts;
         syncDeckUi("L");
         syncDeckUi("R");
       }
 
-      // Waveform: ~12 Hz
-      if (!lastWave || ts - lastWave > 80) {
+      if (!lastWave || ts - lastWave > 160) {
         lastWave = ts;
         drawWave(waveEls.L, decks.L, cachedTheme);
         drawWave(waveEls.R, decks.R, cachedTheme);
       }
 
-      // Meters: ~8 Hz
-      if (!lastMeter || ts - lastMeter > 120) {
+      if (!lastMeter || ts - lastMeter > 180) {
         lastMeter = ts;
         for (const ref of meterRefs) {
           if (!ref.meter) continue;
@@ -794,13 +799,22 @@
       }
     };
 
-    decks.L.playing = true;
-    decks.R.playing = true;
+    const ensureDdjRaf = () => {
+      if (!state.ddjRaf && document.getElementById("mod_ddj") && anyPlaying()) {
+        state.ddjRaf = requestAnimationFrame(tick);
+      }
+    };
+
+    // Default both decks stopped — user starts playback to enable RAF.
+    decks.L.playing = false;
+    decks.R.playing = false;
     syncDeckUi("L");
     syncDeckUi("R");
     fitJogs();
-    state.ddjRaf = requestAnimationFrame(tick);
-    setStatus("DDJ-1000 ONLINE · JOG CIRCLE LOCKED");
+    applySpinOnly("L");
+    applySpinOnly("R");
+    root.addEventListener("click", () => queueMicrotask(ensureDdjRaf), true);
+    setStatus("DDJ-1000 IDLE · PRESS PLAY");
   }
 
   window.ddjPanel = { bodyHtml, bind };

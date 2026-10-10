@@ -245,21 +245,24 @@
     let lastTs = 0;
     let lastTimeUi = 0;
 
-    const tick = (ts) => {
-      if (!document.getElementById("mod_cassette")) {
-        state.cassetteRaf = null;
-        return;
+    const ensureRaf = () => {
+      if (!state.cassetteRaf && document.getElementById("mod_cassette") && sim.playing) {
+        state.cassetteRaf = requestAnimationFrame(tick);
       }
-      state.cassetteRaf = requestAnimationFrame(tick);
-      if (document.visibilityState === "hidden") {
+    };
+
+    const tick = (ts) => {
+      if (!document.getElementById("mod_cassette") || !sim.playing || document.visibilityState === "hidden") {
+        state.cassetteRaf = null;
         lastTs = 0;
         return;
       }
-      if (lastTs && ts - lastTs < 48) return;
+      state.cassetteRaf = requestAnimationFrame(tick);
+      if (lastTs && ts - lastTs < 50) return; // ~20fps
       const dt = lastTs ? Math.min(0.08, (ts - lastTs) / 1000) : 0.016;
       lastTs = ts;
 
-      if (sim.playing && !sim.reversing) {
+      if (!sim.reversing) {
         const v = sim.dir / SIDE_SECONDS;
         const dLen = v * dt;
         const rL = packRadiusNorm(lengthLeft());
@@ -274,22 +277,28 @@
           sim.lengthRight = 0;
           reverseAtEnd();
         }
+        applySpins();
+        applyPacks();
       }
 
-      applySpins();
-      applyPacks();
-      if (!lastTimeUi || ts - lastTimeUi > 300) {
+      if (!lastTimeUi || ts - lastTimeUi > 400) {
         lastTimeUi = ts;
         fmtTime();
       }
     };
+
+    // Resume RAF after play / reel / transport toggles.
+    const armRaf = () => queueMicrotask(ensureRaf);
+    els.play?.addEventListener("click", armRaf);
+    root.querySelectorAll(".cass-reel, [data-cass-rev], [data-cass-prev], [data-cass-next]")
+      .forEach((el) => el.addEventListener("click", armRaf));
 
     syncLabel();
     syncDirUi();
     applyPacks();
     applySpins();
     fmtTime();
-    state.cassetteRaf = requestAnimationFrame(tick);
+    ensureRaf();
   }
 
   window.cassettePanel = { bodyHtml, bind };

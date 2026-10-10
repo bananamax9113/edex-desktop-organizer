@@ -9,6 +9,12 @@
     font-family: var(--font_pixel), var(--font_mono);
     color: rgb(var(--color_r), var(--color_g), var(--color_b));
     user-select: none;
+    contain: layout paint style;
+}
+
+#mod_cockpit canvas {
+    transform: translateZ(0);
+    will-change: contents;
 }
 
 .cockpit-matrix-bar {

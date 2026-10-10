@@ -111,18 +111,31 @@
       if (el) el.textContent = text;
     };
 
+    let themeCache = { r: 170, g: 207, b: 209, at: 0 };
+    let fontCache = { value: '"Press Start 2P", monospace', at: 0 };
     const themeRgb = () => {
+      const now = Date.now();
+      if (now - themeCache.at < 2000) return themeCache;
       const cs = getComputedStyle(document.documentElement);
-      const r = Number(cs.getPropertyValue("--color_r")) || 0;
-      const g = Number(cs.getPropertyValue("--color_g")) || 200;
-      const b = Number(cs.getPropertyValue("--color_b")) || 255;
-      return { r, g, b };
+      themeCache = {
+        r: Number(cs.getPropertyValue("--color_r")) || 0,
+        g: Number(cs.getPropertyValue("--color_g")) || 200,
+        b: Number(cs.getPropertyValue("--color_b")) || 255,
+        at: now
+      };
+      return themeCache;
     };
     const rgba = (c, a) => `rgba(${c.r},${c.g},${c.b},${a})`;
     const pad3 = (n) => String(Math.round(n)).padStart(3, "0");
     const pixelFont = () => {
+      const now = Date.now();
+      if (now - fontCache.at < 5000) return fontCache.value;
       const cs = getComputedStyle(document.documentElement);
-      return cs.getPropertyValue("--font_pixel")?.trim() || '"Press Start 2P", monospace';
+      fontCache = {
+        value: cs.getPropertyValue("--font_pixel")?.trim() || '"Press Start 2P", monospace',
+        at: now
+      };
+      return fontCache.value;
     };
 
     const syncReadouts = () => {
@@ -153,7 +166,7 @@
       set("lon", (Math.random() * 180).toFixed(2));
     };
     flickerMatrix();
-    state.cockpitMatrixTimer = window.setInterval(flickerMatrix, 900);
+    // Matrix timer started later — only ticks while card is live/hovered.
 
     const applyKnobVisual = (knob, value) => {
       const min = Number(knob.dataset.min) || 0;
@@ -244,11 +257,14 @@
     });
     throttle?.addEventListener("pointerdown", (event) => event.stopPropagation());
 
-    const fitCanvas = (canvas) => {
+    /** CSS-px size cache — resize only via ResizeObserver, never per paint frame. */
+    const canvasSize = new WeakMap();
+    const ctxCache = new WeakMap();
+    const measureCanvas = (canvas) => {
       const parent = canvas.parentElement;
       if (!parent) return { w: 0, h: 0, dpr: 1 };
       const rect = parent.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       const w = Math.max(1, Math.floor(rect.width));
       const h = Math.max(1, Math.floor(rect.height));
       const bw = Math.floor(w * dpr);
@@ -256,8 +272,20 @@
       if (canvas.width !== bw || canvas.height !== bh) {
         canvas.width = bw;
         canvas.height = bh;
+        ctxCache.delete(canvas);
       }
-      return { w, h, dpr };
+      const size = { w, h, dpr };
+      canvasSize.set(canvas, size);
+      return size;
+    };
+    const fitCanvas = (canvas) => canvasSize.get(canvas) || measureCanvas(canvas);
+    const getCtx = (canvas) => {
+      let ctx = ctxCache.get(canvas);
+      if (!ctx) {
+        ctx = canvas.getContext("2d", { alpha: true, desynchronized: true }) || canvas.getContext("2d");
+        ctxCache.set(canvas, ctx);
+      }
+      return ctx;
     };
 
     const drawRing = (ctx, cx, cy, r, color, width, dash) => {
@@ -317,7 +345,8 @@
       const { canvas, letter, pct, blips } = item;
       const { w, h, dpr } = fitCanvas(canvas);
       if (w < 8 || h < 8) return;
-      const ctx = canvas.getContext("2d");
+      const ctx = getCtx(canvas);
+      if (!ctx) return;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
       const c = themeRgb();
@@ -421,7 +450,8 @@
       if (!radarCanvas) return;
       const { w, h, dpr } = fitCanvas(radarCanvas);
       if (w < 16 || h < 16) return;
-      const ctx = radarCanvas.getContext("2d");
+      const ctx = getCtx(radarCanvas);
+      if (!ctx) return;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
       const c = themeRgb();
@@ -564,47 +594,103 @@
       });
     };
 
+    /*
+     * Idle by default: paint a static frame once, then only run RAF while the
+     * card is hovered / focused (~8fps). Canvas2D is CPU-bound; this cuts idle cost to ~0.
+     */
+    const FRAME_MS = 125;
+    let sectorPaintAt = 0;
+    let live = false;
+    const card = document.getElementById("card_cockpit");
+
+    const paintFrame = (ts, forceSectors = false) => {
+      const t = (ts || performance.now()) / 1000;
+      const dt = lastTs ? Math.min(0.12, ((ts || performance.now()) - lastTs) / 1000) : 0.016;
+      lastTs = ts || performance.now();
+      drawMainRadar(t, dt);
+      if (forceSectors || !sectorPaintAt || lastTs - sectorPaintAt > 900) {
+        sectorPaintAt = lastTs;
+        sectorState.forEach((s) => drawSector(s, t));
+      }
+    };
+
     const tick = (ts) => {
       if (!document.getElementById("mod_cockpit")) {
         state.cockpitRaf = null;
         return;
       }
-      const t = ts / 1000;
-      const dt = lastTs ? Math.min(0.05, (ts - lastTs) / 1000) : 0.016;
-      lastTs = ts;
-      drawMainRadar(t, dt);
-      sectorState.forEach((s) => drawSector(s, t));
-      // gently drift sector pct for life
-      if (Math.floor(t * 2) % 7 === 0) {
-        sectorState.forEach((s, i) => {
-          if (Math.random() < 0.02) {
-            const base = Number(s.canvas.dataset.pct) || 50;
-            s.pct = Math.max(5, Math.min(95, base + (Math.random() - 0.5) * 12));
-          }
-        });
+      if (!live || document.visibilityState === "hidden") {
+        state.cockpitRaf = null;
+        lastTs = 0;
+        return;
       }
       state.cockpitRaf = requestAnimationFrame(tick);
+      if (lastTs && ts - lastTs < FRAME_MS) return;
+      paintFrame(ts, false);
     };
-    state.cockpitRaf = requestAnimationFrame(tick);
+
+    const startLive = () => {
+      if (live) return;
+      live = true;
+      setStatus("SCAN LIVE");
+      if (!state.cockpitRaf) state.cockpitRaf = requestAnimationFrame(tick);
+    };
+    const stopLive = () => {
+      live = false;
+      if (state.cockpitRaf) {
+        cancelAnimationFrame(state.cockpitRaf);
+        state.cockpitRaf = null;
+      }
+      setStatus("SCAN IDLE");
+    };
+
+    // Initial measure + one static paint (no continuous RAF).
+    if (radarCanvas) measureCanvas(radarCanvas);
+    sectorCanvases.forEach((c) => measureCanvas(c));
+    paintFrame(performance.now(), true);
 
     const radarWrap = document.getElementById("ckp_radar_wrap");
     radarWrap?.addEventListener("pointerdown", (event) => {
       event.stopPropagation();
+      startLive();
       setStatus("SCAN LOCK");
       window.setTimeout(() => {
         if (status()?.textContent === "SCAN LOCK") setStatus("TRACKING");
       }, 650);
     });
 
+    card?.addEventListener("pointerenter", startLive);
+    card?.addEventListener("pointerleave", stopLive);
+    card?.addEventListener("focusin", startLive);
+    card?.addEventListener("focusout", (event) => {
+      if (!card.contains(event.relatedTarget)) stopLive();
+    });
+
     if (typeof ResizeObserver !== "undefined") {
       const ro = new ResizeObserver(() => {
-        /* next frame redraws via raf */
+        if (radarCanvas) measureCanvas(radarCanvas);
+        sectorCanvases.forEach((c) => measureCanvas(c));
+        paintFrame(performance.now(), true);
       });
       ro.observe(root);
+      if (radarWrap) ro.observe(radarWrap);
+      sectorCanvases.forEach((c) => {
+        if (c.parentElement) ro.observe(c.parentElement);
+      });
     }
 
+    // Slow matrix flicker only while live / visible.
+    if (state.cockpitMatrixTimer) {
+      clearInterval(state.cockpitMatrixTimer);
+      state.cockpitMatrixTimer = null;
+    }
+    state.cockpitMatrixTimer = window.setInterval(() => {
+      if (document.visibilityState === "hidden" || !live) return;
+      flickerMatrix();
+    }, 1500);
+
     syncReadouts();
-    setStatus("SCAN ONLINE");
+    setStatus("SCAN IDLE");
   }
 
   window.cockpitPanel = { bodyHtml, bind };

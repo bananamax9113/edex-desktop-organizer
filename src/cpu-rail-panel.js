@@ -131,11 +131,11 @@
     // Shared cache / uncore bar
     const cacheY = iy + ih - cacheH - 4;
     parts.push(`<rect class="cpu-die-cache" x="${ix}" y="${cacheY}" width="${iw}" height="${cacheH}"/>`);
-    // Cache internal stripes with flow
-    for (let i = 0; i < 5; i++) {
-      const sx = ix + 6 + i * ((iw - 12) / 4);
+    // Two cache flow stripes (was 5) — enough motion, less paint work.
+    for (let i = 0; i < 2; i++) {
+      const sx = ix + 10 + i * ((iw - 20) / 1);
       parts.push(`<path class="cpu-die-cache-line pulse" d="M ${sx} ${cacheY + 4} V ${cacheY + cacheH - 4}"
-        style="animation-delay:-${(i * 0.25).toFixed(2)}s"/>`);
+        style="animation-delay:-${(i * 0.45).toFixed(2)}s"/>`);
     }
 
     // Ring bus around die
@@ -147,11 +147,7 @@
         style="animation-delay:-${(i * 0.4).toFixed(2)}s"/>`);
     });
 
-    // Traveling scan bead on ring
-    const ringD = `M ${ix - 3} ${iy - 3} H ${ix + iw + 3} V ${iy + ih + 3} H ${ix - 3} Z`;
-    parts.push(`<circle class="cpu-die-bead" r="2.8">
-      <animateMotion dur="5.2s" repeatCount="indefinite" path="${ringD}"/>
-    </circle>`);
+    // Skip SMIL bead on die ring — CSS dash animation is enough and stays GPU-cheap.
 
     return `<g class="cpu-die">${parts.join("")}</g>`;
   }
@@ -339,7 +335,8 @@
       const pts = fanPath(pin, terminal, branch);
       const d = ptsToD(pts);
       const len = pathLength(pts);
-      const glow = rand() > 0.28;
+      // Fewer animated traces → much lower compositor / paint cost.
+      const glow = rand() > 0.72;
 
       traces.push({
         d,
@@ -431,18 +428,7 @@
   }
 
   function schematicSvg(data) {
-    const defs = `
-      <defs>
-        <filter id="cpuRailGlow" x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur stdDeviation="1.8" result="b"/>
-          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-        <filter id="cpuRailGlowSoft" x="-80%" y="-80%" width="260%" height="260%">
-          <feGaussianBlur stdDeviation="3.2" result="b"/>
-          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-      </defs>`;
-
+    // No SVG feGaussianBlur — those force CPU rasterization every frame.
     const pinRects = data.pins.map((p) => {
       if (p.ox !== 0) {
         const x = Math.min(p.x, p.x + p.ox);
@@ -460,22 +446,14 @@
         t.ring ? "ring" : ""
       ].filter(Boolean).join(" ");
       const dash = Math.max(40, Math.round(t.len || 80));
-      return `<path class="${cls}" d="${t.d}" pathLength="${dash}"
-        style="animation-delay:${(-(t.delay || 0)).toFixed(2)}s; --rail-len:${dash}"/>`;
+      return `<path class="${cls}" d="${t.d}" pathLength="${dash}"/>`;
     }).join("");
 
-    // Traveling highlight beads along pulsed traces
-    const beadsFixed = data.traces.filter((t) => t.pulse).map((t) => {
-      const dur = t.slow ? 4.8 : 2.9;
-      const cls = `cpu-rail-bead${t.slow ? " slow" : ""}${t.ring ? " ring" : ""}`;
-      return `<circle class="${cls}" r="${t.ring ? 3.1 : 2.5}">
-        <animateMotion dur="${dur}s" repeatCount="indefinite" begin="${(t.delay || 0).toFixed(2)}s"
-          rotate="auto" path="${t.d}"/>
-      </circle>`;
-    }).join("");
+    // No SMIL beads / CSS dash animation — static nodes only (GPU idle after paint).
+    const beadsFixed = "";
 
-    const viaEls = data.vias.map((v) =>
-      `<g class="cpu-rail-via-wrap${v.glow ? " glow" : ""}" style="animation-delay:${(-(v.delay || 0)).toFixed(2)}s">
+    const viaEls = data.vias.filter((_, i) => i % 3 === 0).map((v) =>
+      `<g class="cpu-rail-via-wrap${v.glow ? " glow" : ""}">
         <circle class="cpu-rail-via-halo" cx="${v.x}" cy="${v.y}" r="${(v.r || 2.4) + 3.5}"/>
         <circle class="cpu-rail-via" cx="${v.x}" cy="${v.y}" r="${v.r || 2.4}"/>
       </g>`
@@ -485,8 +463,8 @@
       `<rect class="cpu-rail-pad" x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}"/>`
     ).join("");
 
-    const nodeEls = data.nodes.map((n) =>
-      `<g class="cpu-rail-node${n.bright ? " bright" : ""}" style="animation-delay:${(-(n.delay || 0)).toFixed(2)}s">
+    const nodeEls = data.nodes.filter((_, i) => i % 4 === 0).map((n) =>
+      `<g class="cpu-rail-node${n.bright ? " bright" : ""}">
         <circle class="cpu-rail-node-halo" cx="${n.x}" cy="${n.y}" r="6"/>
         <circle class="cpu-rail-node-core" cx="${n.x}" cy="${n.y}" r="2.1"/>
       </g>`
@@ -508,7 +486,6 @@
     const { x, y, w, h } = CHIP;
     return `
       <svg viewBox="0 0 ${VIEW_W} ${VIEW_H}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-        ${defs}
         ${tracePaths}
         ${compEls}
         ${padEls}
@@ -562,13 +539,18 @@
     if (!root) return;
 
     const svgHost = root.querySelector("[data-cpu-rail-svg]");
-    // Always redraw when bind runs after style upgrade (clear drawn flag if version bump)
-    if (svgHost && svgHost.dataset.drawn !== "v3") {
+    // v5: fully static schematic (no SMIL / dash animation runtime).
+    if (svgHost && svgHost.dataset.drawn !== "v5") {
       const data = buildSchematic(13);
       root._cpuRailData = data;
       svgHost.innerHTML = schematicSvg(data);
-      svgHost.dataset.drawn = "v3";
+      svgHost.dataset.drawn = "v5";
     }
+
+    const syncPause = () => {
+      root.classList.toggle("cpu-rail-paused", document.visibilityState === "hidden");
+    };
+    syncPause();
 
     const layout = () => placeChipFace(root);
     layout();
@@ -580,6 +562,8 @@
         state.cpuRailResizeObs = ro;
       }
       window.addEventListener("resize", layout);
+      document.addEventListener("visibilitychange", syncPause);
+      state.cpuRailVisHandler = syncPause;
     }
 
     const refresh = async () => {
@@ -594,7 +578,7 @@
       const loadEl = root.querySelector("[data-cpu-rail-load]");
       const coresEl = root.querySelector("[data-cpu-rail-cores]");
       const clkEl = root.querySelector("[data-cpu-rail-clk]");
-      if (logo) {
+      if (logo && logo.dataset.brand !== brand) {
         logo.innerHTML = logoSvg(brand);
         logo.dataset.brand = brand;
       }
@@ -608,7 +592,6 @@
         const mx = Number(cpu.speedMax) || 0;
         clkEl.textContent = mx ? `${mx.toFixed(2)}GHz` : "—";
       }
-      layout();
     };
 
     refresh();
@@ -617,7 +600,7 @@
       if (document.visibilityState === "hidden") return;
       if (!document.getElementById("mod_cpu_rail")) return;
       refresh();
-    }, 5000);
+    }, 15000);
   }
 
   window.cpuRailPanel = { bodyHtml, bind };

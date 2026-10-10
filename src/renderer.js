@@ -487,7 +487,8 @@ function setupDesktopClickThrough() {
     applyAt(pt.x, pt.y);
   };
   clearInterval(setupDesktopClickThrough._timer);
-  setupDesktopClickThrough._timer = setInterval(poll, 32);
+  // ~12Hz is enough for hit-testing; 32ms (~31Hz) burned CPU for little gain.
+  setupDesktopClickThrough._timer = setInterval(poll, 80);
   document.addEventListener("pointermove", (event) => {
     applyAt(event.clientX, event.clientY);
   }, { capture: true, passive: true });
@@ -2240,6 +2241,18 @@ function closePanel(id) {
     try { state.ddjResizeObs?.disconnect?.(); } catch { /* ignore */ }
     state.ddjResizeObs = null;
   }
+  if (id === "cpuRail") {
+    if (state.cpuRailTimer) {
+      clearInterval(state.cpuRailTimer);
+      state.cpuRailTimer = null;
+    }
+    try { state.cpuRailResizeObs?.disconnect?.(); } catch { /* ignore */ }
+    state.cpuRailResizeObs = null;
+    if (state.cpuRailVisHandler) {
+      document.removeEventListener("visibilitychange", state.cpuRailVisHandler);
+      state.cpuRailVisHandler = null;
+    }
+  }
   delete state.layout[id];
   document.querySelectorAll(`#card_${id}, [data-panel-id="${id}"]`).forEach((el) => el.remove());
   // Persist current display first, then strip this id from every saved layout.
@@ -2365,6 +2378,10 @@ function stopPluginRuntimes() {
   }
   try { state.cpuRailResizeObs?.disconnect?.(); } catch { /* ignore */ }
   state.cpuRailResizeObs = null;
+  if (state.cpuRailVisHandler) {
+    document.removeEventListener("visibilitychange", state.cpuRailVisHandler);
+    state.cpuRailVisHandler = null;
+  }
   window.cursorChatPanel?.unbind?.(state);
 }
 
@@ -2516,7 +2533,8 @@ function buildLayout() {
     clearInterval(state.clockTimer);
     cancelAnimationFrame(state.clockTimer);
   }
-  state.clockTimer = setInterval(renderClock, 100);
+  // 4Hz is enough for LED tenths; 10Hz was rewriting hundreds of DOM nodes.
+  state.clockTimer = setInterval(renderClock, 250);
   window.__edexTheme = state.theme;
   applyRainMetrics();
   window.edexEffects?.start?.();

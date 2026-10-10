@@ -128,7 +128,7 @@
         const tick = () => {
           if (gen !== globeGen || !globeInstance) return;
           if (pageActive()) globeInstance.tick();
-          animateTimer = setTimeout(() => requestAnimationFrame(tick), 1000 / 8);
+          animateTimer = setTimeout(() => requestAnimationFrame(tick), 1000 / 5);
         };
         tick();
         setTimeout(() => {
@@ -725,7 +725,8 @@
     const h = Math.max(48, canvas.clientHeight || host.clientHeight || 120);
     canvas.width = Math.floor(w * dpr);
     canvas.height = Math.floor(h * dpr);
-    const ctx = canvas.getContext("2d");
+    canvas.style.transform = "translateZ(0)";
+    const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true }) || canvas.getContext("2d");
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const font = rainOpts.fontSize;
     const cols = Math.max(4, Math.floor(w / Math.max(6, font * 0.85)));
@@ -762,7 +763,7 @@
         return;
       }
       if (!pageActive()) return;
-      if (rainLast && ts - rainLast < 80) return; // ~12 fps
+      if (rainLast && ts - rainLast < 140) return; // ~7 fps — canvas text is CPU-bound
       rainLast = ts;
       const { ctx, w, h, cols, drops, baseSpeed } = rainState;
       const font = rainOpts.fontSize;
