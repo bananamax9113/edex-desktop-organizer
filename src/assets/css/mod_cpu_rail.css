@@ -1,0 +1,323 @@
+/* CPU power-rail schematic — four-way pin fan + transition glow */
+
+#mod_cpu_rail.cpu-rail-root {
+    --rail: var(--color_r), var(--color_g), var(--color_b);
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background:
+        radial-gradient(ellipse 55% 50% at 50% 50%, rgba(var(--rail), 0.07), transparent 70%),
+        rgba(0, 0, 0, 0.55);
+    color: rgb(var(--rail));
+    font-family: var(--font_mono), ui-monospace, monospace;
+    user-select: none;
+    overflow: hidden;
+}
+
+.cpu-rail-stage {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+}
+
+.cpu-rail-stage svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.cpu-rail-trace {
+    fill: none;
+    stroke: rgb(var(--rail));
+    stroke-width: 1.2;
+    stroke-linecap: square;
+    stroke-linejoin: miter;
+    opacity: 0.72;
+}
+
+.cpu-rail-trace.pulse {
+    stroke-dasharray: 5 11;
+    opacity: 0.92;
+    animation: cpu-rail-flow 2.9s linear infinite;
+    filter: url(#cpuRailGlow);
+}
+
+.cpu-rail-trace.pulse.slow {
+    animation-duration: 4.8s;
+    animation-direction: reverse;
+    opacity: 0.55;
+    stroke-dasharray: 4 14;
+}
+
+.cpu-rail-trace.ring {
+    stroke-width: 1.45;
+    opacity: 0.4;
+    stroke-dasharray: 8 16;
+    animation-duration: 6.5s;
+}
+
+@keyframes cpu-rail-flow {
+    to { stroke-dashoffset: -80; }
+}
+
+/* Traveling light beads */
+.cpu-rail-bead {
+    fill: rgb(var(--rail));
+    filter: url(#cpuRailGlowSoft);
+    opacity: 0.95;
+}
+
+.cpu-rail-bead.slow {
+    opacity: 0.7;
+}
+
+.cpu-rail-bead.ring {
+    fill: #fff;
+    opacity: 0.85;
+}
+
+/* Transition nodes at bends */
+.cpu-rail-node {
+    animation: cpu-rail-node-pulse 2.4s ease-in-out infinite;
+}
+
+.cpu-rail-node.bright {
+    animation-duration: 1.6s;
+}
+
+.cpu-rail-node-halo {
+    fill: rgb(var(--rail));
+    opacity: 0.18;
+    filter: url(#cpuRailGlowSoft);
+}
+
+.cpu-rail-node-core {
+    fill: rgb(var(--rail));
+    filter: url(#cpuRailGlow);
+}
+
+@keyframes cpu-rail-node-pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
+
+.cpu-rail-via-wrap {
+    animation: cpu-rail-via-flash 2.8s ease-in-out infinite;
+}
+
+.cpu-rail-via-wrap.glow .cpu-rail-via-halo {
+    fill: rgb(var(--rail));
+    opacity: 0.22;
+    filter: url(#cpuRailGlowSoft);
+}
+
+.cpu-rail-via-halo {
+    fill: rgb(var(--rail));
+    opacity: 0.12;
+}
+
+.cpu-rail-via {
+    fill: none;
+    stroke: rgb(var(--rail));
+    stroke-width: 1.15;
+}
+
+@keyframes cpu-rail-via-flash {
+    0%, 100% { opacity: 0.55; }
+    40% { opacity: 1; }
+    55% { opacity: 0.7; }
+}
+
+.cpu-rail-pad {
+    fill: rgb(var(--rail));
+}
+
+.cpu-rail-comp {
+    fill: none;
+    stroke: rgb(var(--rail));
+    stroke-width: 1.05;
+}
+
+.cpu-rail-comp-fill {
+    fill: rgb(var(--rail));
+    opacity: 0.9;
+}
+
+.cpu-rail-chip-body {
+    fill: rgba(0, 0, 0, 0.88);
+    stroke: rgb(var(--rail));
+    stroke-width: 1.7;
+    filter: url(#cpuRailGlow);
+}
+
+.cpu-rail-chip-inner {
+    fill: none;
+    stroke: rgb(var(--rail));
+    stroke-width: 0.9;
+    opacity: 0.45;
+}
+
+.cpu-rail-pin {
+    fill: rgb(var(--rail));
+    filter: url(#cpuRailGlow);
+}
+
+/* —— Die floorplan (inside package) —— */
+.cpu-die-outline {
+    fill: rgba(var(--rail), 0.04);
+    stroke: rgb(var(--rail));
+    stroke-width: 0.8;
+    opacity: 0.55;
+}
+
+.cpu-die-core {
+    fill: rgba(var(--rail), 0.07);
+    stroke: rgb(var(--rail));
+    stroke-width: 0.75;
+    opacity: 0.7;
+    animation: cpu-die-core-glow 3.2s ease-in-out infinite;
+}
+
+.cpu-die-core-x {
+    fill: none;
+    stroke: rgb(var(--rail));
+    stroke-width: 0.55;
+    opacity: 0.35;
+}
+
+.cpu-die-mesh {
+    fill: none;
+    stroke: rgb(var(--rail));
+    stroke-width: 0.7;
+    opacity: 0.45;
+    stroke-linecap: square;
+}
+
+.cpu-die-mesh.pulse {
+    stroke-dasharray: 3 7;
+    animation: cpu-rail-flow 2.4s linear infinite;
+    filter: url(#cpuRailGlow);
+    opacity: 0.75;
+}
+
+.cpu-die-cache {
+    fill: rgba(var(--rail), 0.1);
+    stroke: rgb(var(--rail));
+    stroke-width: 0.85;
+    opacity: 0.75;
+}
+
+.cpu-die-cache-line {
+    fill: none;
+    stroke: rgb(var(--rail));
+    stroke-width: 0.9;
+    stroke-dasharray: 2 5;
+    animation: cpu-rail-flow 1.8s linear infinite;
+    opacity: 0.8;
+    filter: url(#cpuRailGlow);
+}
+
+.cpu-die-ring {
+    fill: none;
+    stroke: rgb(var(--rail));
+    stroke-width: 1.1;
+    stroke-dasharray: 6 10;
+    opacity: 0.55;
+    animation: cpu-rail-flow 5s linear infinite;
+    filter: url(#cpuRailGlow);
+}
+
+.cpu-die-bond {
+    fill: rgb(var(--rail));
+    opacity: 0.65;
+    animation: cpu-rail-node-pulse 2s ease-in-out infinite;
+}
+
+.cpu-die-bead {
+    fill: #fff;
+    filter: url(#cpuRailGlowSoft);
+    opacity: 0.9;
+}
+
+@keyframes cpu-die-core-glow {
+    0%, 100% { opacity: 0.45; }
+    50% { opacity: 0.95; }
+}
+
+.cpu-rail-chip-face {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.28rem;
+    text-align: center;
+    pointer-events: none;
+    box-sizing: border-box;
+    padding: 0.55rem 0.4rem;
+    color: rgb(var(--rail));
+    /* Let die lines show around the label stack */
+    background: radial-gradient(ellipse 70% 60% at 50% 48%, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.2) 75%, transparent);
+}
+
+.cpu-rail-logo {
+    width: 58%;
+    max-width: 5.8rem;
+    min-height: 1.6rem;
+    height: auto;
+    opacity: 1;
+    filter: drop-shadow(0 0 0.35rem rgba(var(--rail), 0.55));
+}
+
+.cpu-rail-logo svg,
+.cpu-rail-logo-mark {
+    width: 100%;
+    height: auto;
+    display: block;
+    fill: rgb(var(--rail));
+    color: rgb(var(--rail));
+    stroke: rgb(var(--rail));
+}
+
+.cpu-rail-brand {
+    font-size: calc(var(--fs) * 0.5);
+    letter-spacing: 0.22em;
+    opacity: 0.55;
+    line-height: 1.1;
+    order: 3;
+}
+
+.cpu-rail-model {
+    font-family: var(--font_main), var(--font_mono);
+    font-size: calc(var(--fs) * 1.35);
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    line-height: 1.15;
+    max-width: 100%;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    word-break: break-word;
+    text-shadow: 0 0 0.55rem rgba(var(--rail), 0.45);
+    order: 2;
+}
+
+.cpu-rail-meta {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.28rem 0.45rem;
+    border-top: 1px solid rgba(var(--rail), 0.28);
+    font-size: calc(var(--fs) * 0.48);
+    letter-spacing: 0.1em;
+    opacity: 0.7;
+}
+
+.cpu-rail-meta b {
+    font-weight: 500;
+    opacity: 1;
+}

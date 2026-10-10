@@ -123,13 +123,35 @@ body.desktop-shell #workspace {
     inset: 0;
     overflow: hidden;
     background: transparent;
+    z-index: 0;
+}
+
+#grid-wave {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+}
+
+#grid-wave.on {
+    opacity: 1;
+}
+
+#grid-wave-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
 }
 
 #snap-guides {
     position: absolute;
     inset: 0;
     pointer-events: none;
-    z-index: 1;
+    z-index: 2;
 }
 
 #snap-guides.on {
@@ -218,12 +240,14 @@ body.desktop-shell #workspace {
 
 .hud-card.locked .card-title,
 .path-card.locked .card-title,
+.program-card.locked .card-title,
 .desktop-card.locked .card-title {
     cursor: default;
 }
 
 .hud-card.locked .resize-handle,
 .path-card.locked .resize-handle,
+.program-card.locked .resize-handle,
 .desktop-card.locked .resize-handle {
     display: none;
 }
@@ -358,6 +382,15 @@ body.desktop-shell #workspace {
     object-fit: contain;
 }
 
+/* 系統圖示保持原始色彩，不受主題色填充影響 */
+.desk-icon-face img.sys-icon,
+.desk-icon > img.sys-icon {
+    fill: none;
+    color: inherit;
+    filter: none;
+    -webkit-filter: none;
+}
+
 .desk-icon-face .tag-dots {
     position: absolute;
     right: 12%;
@@ -396,6 +429,7 @@ body.desktop-shell #workspace {
 
 .hud-card,
 .path-card,
+.program-card,
 .desktop-card {
     position: absolute;
     z-index: 8;
@@ -417,6 +451,7 @@ body.desktop-shell #workspace {
 
 .hud-card.has-custom-bg,
 .path-card.has-custom-bg,
+.program-card.has-custom-bg,
 .desktop-card.has-custom-bg {
     background: var(--card-bg) !important;
     background-color: var(--card-bg) !important;
@@ -424,19 +459,29 @@ body.desktop-shell #workspace {
 
 .hud-card.has-custom-bg .card-title,
 .path-card.has-custom-bg .card-title,
+.program-card.has-custom-bg .card-title,
 .desktop-card.has-custom-bg .card-title,
 .hud-card.has-custom-bg .card-body,
 .path-card.has-custom-bg .card-body,
+.program-card.has-custom-bg .card-body,
 .desktop-card.has-custom-bg .card-body,
 .hud-card.has-custom-bg .card-body > [id^="mod_"],
 .hud-card.has-custom-bg .card-body [id$="_innercontainer"],
 .hud-card.has-custom-bg .card-body [id$="_inner"],
 .path-card.has-custom-bg .path-stage,
+.program-card.has-custom-bg .program-host,
 .desktop-card.has-custom-bg #desktop-stage,
 .hud-card.has-custom-bg .cal-root,
 .hud-card.has-custom-bg .fs-root,
 .hud-card.has-custom-bg .shortcuts-stage,
-.hud-card.has-custom-bg .drives-stage {
+.hud-card.has-custom-bg .drives-stage,
+.hud-card.has-custom-bg .cockpit-root,
+.hud-card.has-custom-bg .cockpit-radar-wrap,
+.hud-card.has-custom-bg .cockpit-sector,
+.hud-card.has-custom-bg .cockpit-oh-bay,
+.hud-card.has-custom-bg .cockpit-col,
+.hud-card.has-custom-bg #mod_radar_globe,
+.hud-card.has-custom-bg #mod_radar_globe .rg-stage {
     background: var(--card-bg) !important;
     background-color: var(--card-bg) !important;
     background-image: none !important;
@@ -444,6 +489,7 @@ body.desktop-shell #workspace {
 
 body.is-card-dragging .hud-card:not(.dragging),
 body.is-card-dragging .path-card:not(.dragging),
+body.is-card-dragging .program-card:not(.dragging),
 body.is-card-dragging .desktop-card:not(.dragging) {
     opacity: 1 !important;
     border-color: rgb(var(--color_r), var(--color_g), var(--color_b));
@@ -451,6 +497,7 @@ body.is-card-dragging .desktop-card:not(.dragging) {
 
 .hud-card.dragging,
 .path-card.dragging,
+.program-card.dragging,
 .desktop-card.dragging {
     z-index: 40;
     opacity: 1 !important;
@@ -461,6 +508,7 @@ body.is-card-dragging .desktop-card:not(.dragging) {
 
 .hud-card.dragging .card-body,
 .path-card.dragging .card-body,
+.program-card.dragging .card-body,
 .desktop-card.dragging .card-body,
 .hud-card.dragging .card-body > [id^="mod_"] {
     background: transparent !important;
@@ -472,8 +520,9 @@ body.is-card-dragging .desktop-card:not(.dragging) {
     opacity: 1;
 }
 
+/* Title row only: link-select / drag affordance. Content uses default. */
 .card-title {
-    cursor: grab;
+    cursor: pointer;
     font-size: 1.05rem;
     font-weight: 600;
     letter-spacing: 0.06rem;
@@ -490,6 +539,31 @@ body.is-card-dragging .desktop-card:not(.dragging) {
 
 .card-title:active {
     cursor: grabbing;
+}
+
+.hud-card .card-body,
+.path-card .card-body,
+.program-card .card-body,
+.desktop-card .card-body,
+.path-stage,
+#desktop-stage,
+#shortcuts-stage,
+.desk-group,
+.desk-group-items,
+.desk-filter-bar,
+.desk-tab-bar {
+    cursor: default;
+}
+
+.hud-card .card-body input,
+.hud-card .card-body textarea,
+.path-card .card-body input,
+.path-card .card-body textarea,
+.desktop-card .card-body input,
+.desktop-card .card-body textarea,
+.program-card .card-body input,
+.program-card .card-body textarea {
+    cursor: text;
 }
 
 .card-title-text {
@@ -568,12 +642,14 @@ body.is-card-dragging .desktop-card:not(.dragging) {
     z-index: 5;
 }
 
-.path-card {
+.path-card,
+.program-card {
     min-width: calc(var(--grid-size) * 6);
     min-height: calc(var(--grid-size) * 5);
 }
 
 .path-card .card-body,
+.program-card .card-body,
 .desktop-card .card-body {
     display: flex;
     flex-direction: column;
@@ -589,12 +665,192 @@ body.is-card-dragging .desktop-card:not(.dragging) {
     flex: 0 0 auto;
 }
 
+.program-card .program-host {
+    position: relative;
+    flex: 1;
+    min-height: 6rem;
+    overflow: hidden;
+    border: 1px solid rgba(var(--color_r), var(--color_g), var(--color_b), 0.28);
+    background: rgba(0, 0, 0, 0.35);
+}
+
+.program-card.is-running .program-host {
+    background: rgba(0, 0, 0, 0.55);
+    border-color: rgba(var(--color_r), var(--color_g), var(--color_b), 0.5);
+    box-shadow: inset 0 0 1.2rem rgba(var(--color_r), var(--color_g), var(--color_b), 0.12);
+}
+
+.program-card .program-host .path-empty-live {
+    opacity: 0.45;
+    font-size: calc(var(--fs) * 0.92);
+    pointer-events: none;
+}
+
+.program-card .program-view {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    display: block;
+    background: #000;
+    cursor: pointer;
+}
+
+.program-card .program-view-meta {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 0.25rem 0.45rem;
+    font-size: calc(var(--fs) * 0.78);
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.72));
+    pointer-events: none;
+    opacity: 0.85;
+}
+
+.program-card .program-host .path-empty {
+    margin: 0;
+    padding: 1rem;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    text-align: center;
+}
+
+.program-card .program-host .path-empty button {
+    background: transparent;
+    border: 1px solid rgba(var(--color_r), var(--color_g), var(--color_b), 0.55);
+    color: rgb(var(--color_r), var(--color_g), var(--color_b));
+    font-family: var(--font_main);
+    font-size: var(--fs);
+    min-height: var(--ctrl);
+    padding: 0 0.8rem;
+    cursor: pointer;
+}
+
+.program-card .program-host .path-empty button:hover {
+    background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.22);
+}
+
+.program-card.is-running {
+    border-color: rgba(var(--color_r), var(--color_g), var(--color_b), 0.55);
+}
+
+.program-pick-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.pinned-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.25rem 0;
+    border-bottom: 1px solid rgba(var(--color_r), var(--color_g), var(--color_b), 0.2);
+}
+
+.pinned-row span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.desk-tab-bar {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-end;
+    gap: 0.35rem;
+    margin: 0 0 0.35rem;
+    padding: 0.2rem 0.15rem 0;
+    flex: 0 0 auto;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-bottom: 1px solid rgba(var(--color_r), var(--color_g), var(--color_b), 0.45);
+    min-height: calc(var(--ctrl) + 0.35rem);
+}
+
+.desk-tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    max-width: 11.5rem;
+    min-width: 5.5rem;
+    height: calc(var(--ctrl) + 0.15rem);
+    margin: 0;
+    padding: 0 0.7rem;
+    border: 1px solid rgba(var(--color_r), var(--color_g), var(--color_b), 0.28);
+    border-bottom: none;
+    border-radius: 0.28rem 0.28rem 0 0;
+    color: rgba(var(--color_r), var(--color_g), var(--color_b), 0.78);
+    background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.1);
+    font-family: var(--font_main);
+    font-size: var(--fs);
+    cursor: pointer;
+    z-index: 1;
+    flex: 0 0 auto;
+    transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+}
+
+.desk-tab .desk-tab-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: left;
+}
+
+.desk-tab .desk-tab-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 0.15rem;
+    border: none;
+    opacity: 0.7;
+    flex: 0 0 auto;
+    line-height: 1;
+    font-size: 0.95em;
+}
+
+.desk-tab .desk-tab-close:hover {
+    opacity: 1;
+    background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.28);
+}
+
+.desk-tab:hover {
+    color: rgb(var(--color_r), var(--color_g), var(--color_b));
+    background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.22);
+    border-color: rgba(var(--color_r), var(--color_g), var(--color_b), 0.5);
+}
+
+.desk-tab.on {
+    color: rgb(var(--color_r), var(--color_g), var(--color_b));
+    background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.34);
+    border-color: rgba(var(--color_r), var(--color_g), var(--color_b), 0.65);
+    box-shadow: inset 0 -2px 0 rgb(var(--color_r), var(--color_g), var(--color_b));
+}
+
 .desk-filter-bar {
     display: flex;
     flex-wrap: wrap;
     gap: 0.35rem;
     margin: 0 0 0.45rem;
     flex: 0 0 auto;
+}
+
+.desk-filter-bar[hidden] {
+    display: none !important;
 }
 
 .desk-filter-bar button {
@@ -797,9 +1053,9 @@ body.is-card-dragging .desktop-card:not(.dragging) {
 
 #desktop-stage {
     position: relative;
+    flex: 1 1 auto;
     width: 100%;
-    height: 100%;
-    min-height: 12rem;
+    min-height: 8rem;
     overflow: auto;
 }
 
@@ -810,17 +1066,88 @@ body.is-card-dragging .desktop-card:not(.dragging) {
     margin-left: auto;
 }
 
-.desk-icon {
+.desk-icon,
+.desk-icon[draggable="true"] {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    cursor: grab;
+    /* Override Chromium [draggable] grab/move cursor */
+    cursor: pointer !important;
     z-index: 2;
     box-sizing: border-box;
     padding: 0.4rem;
     border: none;
-    background: transparent;
+    /* Windows layered hit-test ignores ~0 alpha; keep a real fill so clicks stick. */
+    background: rgba(8, 12, 18, 0.55);
+    -webkit-user-drag: element;
+    user-select: none;
+}
+
+#file-drag-ghost {
+    position: fixed;
+    z-index: 99999;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    width: 4.5rem;
+    padding: 0.35rem;
+    background: rgba(5, 8, 13, 0.88);
+    border: 1px solid rgba(var(--color_r), var(--color_g), var(--color_b), 0.65);
+    box-shadow: 0 0 0.6rem rgba(0, 0, 0, 0.55);
+    color: rgb(var(--color_r), var(--color_g), var(--color_b));
+    font-family: var(--font_main);
+    font-size: 0.75rem;
+    transform: translateZ(0);
+}
+
+#file-drag-ghost[hidden] {
+    display: none !important;
+}
+
+#file-drag-ghost img,
+#file-drag-ghost svg {
+    width: 2.4rem;
+    height: 2.4rem;
+    object-fit: contain;
+}
+
+#file-drag-ghost span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.desk-icon:active,
+.desk-icon.dragging,
+.desk-icon[draggable="true"]:active {
+    cursor: pointer !important;
+}
+
+/*
+ * Children must not be the drag source — Chromium skips parent dragstart when
+ * the hit target has -webkit-user-drag:none. Route hits to the .desk-icon parent.
+ */
+.desk-icon .desk-icon-face,
+.desk-icon img,
+.desk-icon svg,
+.desk-icon h3,
+.desk-icon .meta,
+.desk-icon .tag-dots {
+    pointer-events: none;
+    -webkit-user-drag: none !important;
+    cursor: pointer !important;
+}
+
+.desk-icon .icon-rename,
+.desk-icon input,
+.desk-icon textarea {
+    pointer-events: auto;
+    -webkit-user-drag: none;
+    cursor: text !important;
 }
 
 .desk-icon .meta {
@@ -855,7 +1182,8 @@ body.is-card-dragging .desktop-card:not(.dragging) {
 }
 
 .desk-icon:hover,
-.desk-icon.selected {
+.desk-icon.selected,
+.fs-row.selected {
     background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.12);
 }
 
@@ -1361,6 +1689,118 @@ div.modal_popup input[type="color"],
 .cpu-core.hot .cpu-core-track i {
     background: #ff5b5b;
     box-shadow: 0 0 0.4rem rgba(255, 91, 91, 0.55);
+}
+
+.cpu-total-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0.2rem 0.4rem 0.35rem;
+  box-sizing: border-box;
+}
+
+.cpu-total-load {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.55rem;
+  padding: 0.15rem 0.2rem 0.05rem;
+}
+
+.cpu-total-label {
+  font-size: 0.95vh;
+  letter-spacing: 0.14em;
+  opacity: 0.55;
+}
+
+.cpu-total-load strong {
+  font-size: 2.4vh;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--cpu-load-color, #2ee6c7);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.cpu-total-load[data-cpu-level="mid"] strong { color: #5b8cff; }
+.cpu-total-load[data-cpu-level="warn"] strong { color: #ffb040; }
+.cpu-total-load[data-cpu-level="crit"] strong {
+  color: #ff4d4d;
+  animation: cpu-crit-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes cpu-crit-pulse {
+  0%, 100% { text-shadow: 0 0 0.2rem rgba(255, 77, 77, 0.35); }
+  50% { text-shadow: 0 0 0.55rem rgba(255, 77, 77, 0.7); }
+}
+
+/* Fine eDEX-style load point matrix (CPU / network) */
+.edex-pointmap {
+  display: grid;
+  grid-template-columns: repeat(var(--pm-cols, 48), 1fr);
+  grid-template-rows: repeat(var(--pm-rows, 12), 1fr);
+  grid-auto-flow: column;
+  grid-gap: 0.14vh;
+  width: 100%;
+  min-height: 5.2vh;
+  padding: 0.35vh 0.2vh;
+  box-sizing: border-box;
+  border-top: 0.092vh dashed rgba(var(--color_r), var(--color_g), var(--color_b), 0.28);
+  border-bottom: 0.092vh dashed rgba(var(--color_r), var(--color_g), var(--color_b), 0.28);
+}
+
+.edex-pt {
+  width: 0.18vh;
+  height: 0.18vh;
+  min-width: 2px;
+  min-height: 2px;
+  justify-self: center;
+  align-self: center;
+  background: rgb(var(--color_r), var(--color_g), var(--color_b));
+  opacity: 0.1;
+}
+
+.edex-pt.on {
+  opacity: 1;
+}
+
+.edex-pt.on.ok { background: #2ee6c7; }
+.edex-pt.on.mid { background: #5b8cff; }
+.edex-pt.on.warn { background: #ffb040; }
+.edex-pt.on.crit { background: #ff4d4d; }
+
+.edex-pointmap-up .edex-pt.on {
+  background: #2ee6c7;
+}
+
+.edex-pointmap-down .edex-pt.on {
+  background: #ffb347;
+}
+
+.conn-pointmap-block {
+  display: grid;
+  grid-template-columns: 3.2vh 1fr;
+  align-items: center;
+  gap: 0.35vh;
+  width: 100%;
+  margin: 0.2vh 0;
+}
+
+.conn-pointmap-label {
+  font-size: 0.95vh;
+  letter-spacing: 0.1em;
+  opacity: 0.55;
+  text-align: right;
+}
+
+#mod_cpuinfo_pointmap {
+  min-height: 6.4vh;
+}
+
+#mod_conninfo_pointmap_up,
+#mod_conninfo_pointmap_down {
+  min-height: 4.6vh;
 }
 
 .cpu-chart-row {

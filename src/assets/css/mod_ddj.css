@@ -1,0 +1,955 @@
+/* DDJ-1000 — theme-monochrome, true-circle jogs */
+
+#mod_ddj.ddj-root {
+    --ddj: var(--color_r), var(--color_g), var(--color_b);
+    --ddj-dot: radial-gradient(circle, rgba(var(--ddj), 0.14) 0.55px, transparent 0.7px);
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.12rem;
+    font-family: var(--font_pixel), var(--font_mono);
+    color: rgb(var(--ddj));
+    user-select: none;
+    background:
+        linear-gradient(180deg, rgba(var(--ddj), 0.04), transparent 30%),
+        rgba(0, 0, 0, 0.4);
+}
+
+.ddj-chrome {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.15rem 0.35rem;
+    border: 1px solid rgba(var(--ddj), 0.28);
+    background: rgba(0, 0, 0, 0.5);
+    font-size: calc(var(--fs) * 0.42);
+    letter-spacing: 0.1em;
+}
+
+.ddj-chrome b { font-weight: 400; }
+
+.ddj-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr) minmax(0, 1fr);
+    gap: 0.3rem;
+}
+
+.ddj-deck,
+.ddj-mixer {
+    min-height: 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.22rem;
+    border: 1px solid rgba(var(--ddj), 0.2);
+    background:
+        var(--ddj-dot) 0 0 / 4px 4px,
+        rgba(0, 0, 0, 0.42);
+    padding: 0.28rem;
+}
+
+.ddj-deck-head {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.3rem;
+}
+
+.ddj-deck-tabs { display: flex; gap: 0.15rem; }
+
+.ddj-deck-tab {
+    padding: 0.1rem 0.28rem;
+    border: 1px solid rgba(var(--ddj), 0.3);
+    background: rgba(0, 0, 0, 0.5);
+    color: inherit;
+    font: inherit;
+    font-size: calc(var(--fs) * 0.38);
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    opacity: 0.6;
+}
+
+.ddj-deck-tab.active {
+    opacity: 1;
+    border-color: rgba(var(--ddj), 0.85);
+    background: rgba(var(--ddj), 0.14);
+}
+
+.ddj-deck-meta {
+    font-size: calc(var(--fs) * 0.34);
+    opacity: 0.6;
+    letter-spacing: 0.06em;
+}
+
+/* Jog row: stage claims space; jog forced to square via JS px size */
+.ddj-jog-row {
+    flex: 1 1 auto;
+    min-height: 8rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 1.5rem;
+    gap: 0.28rem;
+    align-items: stretch;
+}
+
+.ddj-jog-stage {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.ddj-jog-halo {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.45;
+    font-size: calc(var(--fs) * 0.28);
+    letter-spacing: 0.08em;
+}
+
+.ddj-jog-halo .rev {
+    position: absolute;
+    left: 6%;
+    bottom: 8%;
+}
+
+.ddj-jog-halo .fwd {
+    position: absolute;
+    right: 6%;
+    bottom: 8%;
+}
+
+.ddj-jog-halo .grid {
+    position: absolute;
+    left: 4%;
+    top: 4%;
+    opacity: 0.55;
+    font-size: 0.9em;
+}
+
+/* —— TRUE CIRCLE jog (width/height set equal in px by ResizeObserver) —— */
+.ddj-jog {
+    position: relative;
+    flex: 0 0 auto;
+    width: 12rem;
+    height: 12rem;
+    border-radius: 50%;
+    box-sizing: border-box;
+    border: 2px solid rgba(var(--ddj), 0.75);
+    background:
+        radial-gradient(circle at 50% 46%, rgba(30, 32, 36, 0.98) 0 36%, rgba(12, 14, 16, 1) 38% 100%);
+    box-shadow:
+        0 0 0 1px rgba(var(--ddj), 0.25),
+        0 0 0.65rem rgba(var(--ddj), 0.35),
+        inset 0 0 0 0.18rem rgba(0, 0, 0, 0.7);
+    cursor: grab;
+    touch-action: none;
+    overflow: hidden;
+}
+
+.ddj-jog.dragging { cursor: grabbing; }
+
+.ddj-jog.spinning {
+    box-shadow:
+        0 0 0 1px rgba(var(--ddj), 0.45),
+        0 0 0.9rem rgba(var(--ddj), 0.5),
+        inset 0 0 0 0.18rem rgba(0, 0, 0, 0.7);
+}
+
+.ddj-jog-spin {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    pointer-events: none;
+    will-change: transform;
+}
+
+/* Outer dimple grip ring */
+.ddj-jog-dimples {
+    position: absolute;
+    inset: 2.5%;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 50% 7%, rgba(0, 0, 0, 0.75) 0 0.28em, transparent 0.32em),
+        radial-gradient(circle at 72% 14%, rgba(0, 0, 0, 0.75) 0 0.28em, transparent 0.32em),
+        radial-gradient(circle at 88% 32%, rgba(0, 0, 0, 0.75) 0 0.28em, transparent 0.32em),
+        radial-gradient(circle at 93% 50%, rgba(0, 0, 0, 0.75) 0 0.28em, transparent 0.32em),
+        radial-gradient(circle at 88% 68%, rgba(0, 0, 0, 0.75) 0 0.28em, transparent 0.32em),
+        radial-gradient(circle at 72% 86%, rgba(0, 0, 0, 0.75) 0 0.28em, transparent 0.32em),
+        radial-gradient(circle at 50% 93%, rgba(0, 0, 0, 0.75) 0 0.28em, transparent 0.32em),
+        radial-gradient(circle at 28% 86%, rgba(0, 0, 0, 0.75) 0 0.28em, transparent 0.32em),
+        radial-gradient(circle at 12% 68%, rgba(0, 0, 0, 0.75) 0 0.28em, transparent 0.32em),
+        radial-gradient(circle at 7% 50%, rgba(0, 0, 0, 0.75) 0 0.28em, transparent 0.32em),
+        radial-gradient(circle at 12% 32%, rgba(0, 0, 0, 0.75) 0 0.28em, transparent 0.32em),
+        radial-gradient(circle at 30% 14%, rgba(0, 0, 0, 0.75) 0 0.28em, transparent 0.32em);
+    -webkit-mask: radial-gradient(circle, transparent 78%, #000 80% 96%, transparent 98%);
+    mask: radial-gradient(circle, transparent 78%, #000 80% 96%, transparent 98%);
+}
+
+/* Vinyl-like concentric grooves + light radial sheen */
+.ddj-jog-platter {
+    position: absolute;
+    inset: 9%;
+    border-radius: 50%;
+    background:
+        repeating-radial-gradient(
+            circle at 50% 50%,
+            rgba(var(--ddj), 0.1) 0 0.6px,
+            transparent 0.6px 2.4px
+        ),
+        radial-gradient(circle at 38% 34%, rgba(255, 255, 255, 0.06), transparent 42%),
+        rgba(18, 20, 24, 0.95);
+    -webkit-mask: radial-gradient(circle, transparent 48%, #000 50% 96%, transparent 98%);
+    mask: radial-gradient(circle, transparent 48%, #000 50% 96%, transparent 98%);
+    box-shadow: inset 0 0 0.4rem rgba(0, 0, 0, 0.55);
+}
+
+.ddj-jog-needle {
+    position: absolute;
+    left: 50%;
+    top: 11%;
+    width: 2px;
+    height: 18%;
+    margin-left: -1px;
+    background: linear-gradient(to bottom, rgb(var(--ddj)), rgba(var(--ddj), 0.15));
+    box-shadow: 0 0 0.35rem rgba(var(--ddj), 0.8);
+    border-radius: 1px;
+}
+
+.ddj-jog-lcd {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 48%;
+    height: 48%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 1px solid rgba(var(--ddj), 0.4);
+    background:
+        radial-gradient(circle at 40% 32%, rgba(var(--ddj), 0.08), transparent 50%),
+        rgba(0, 0, 0, 0.94);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.08rem;
+    padding: 12%;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 2;
+    box-shadow: inset 0 0 0.5rem rgba(0, 0, 0, 0.8);
+}
+
+.ddj-jog-ring {
+    position: absolute;
+    inset: 4%;
+    border-radius: 50%;
+    border: 1.5px solid rgba(var(--ddj), 0.2);
+    pointer-events: none;
+}
+
+.ddj-jog-ring > i {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 2px;
+    height: 10%;
+    margin-left: -1px;
+    background: rgb(var(--ddj));
+    transform-origin: 50% 500%;
+    box-shadow: 0 0 0.3rem rgba(var(--ddj), 0.7);
+}
+
+.ddj-lcd-tags {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    font-size: calc(var(--fs) * 0.22);
+    letter-spacing: 0.04em;
+    opacity: 0.55;
+}
+
+.ddj-lcd-tags .t-deck { position: absolute; left: 14%; top: 18%; }
+.ddj-lcd-tags .t-sync { position: absolute; right: 12%; top: 18%; }
+.ddj-lcd-tags .t-pct { position: absolute; left: 50%; bottom: 12%; transform: translateX(-50%); opacity: 0.75; }
+
+.ddj-jog-lcd .bpm {
+    position: relative;
+    z-index: 1;
+    font-size: calc(var(--fs) * 0.72);
+    letter-spacing: 0.02em;
+    line-height: 1;
+}
+
+.ddj-jog-lcd .time {
+    position: relative;
+    z-index: 1;
+    font-size: calc(var(--fs) * 0.36);
+    opacity: 0.85;
+    letter-spacing: 0.04em;
+}
+
+.ddj-jog-lcd .track {
+    position: relative;
+    z-index: 1;
+    font-size: calc(var(--fs) * 0.26);
+    opacity: 0.55;
+    max-width: 92%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ddj-jog-lcd canvas {
+    position: relative;
+    z-index: 1;
+    width: 82%;
+    height: 0.85rem;
+    display: block;
+}
+
+.ddj-tempo-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    min-height: 0;
+    width: 1.5rem;
+}
+
+.ddj-tempo-col > span {
+    font-size: calc(var(--fs) * 0.28);
+    letter-spacing: 0.04em;
+    opacity: 0.6;
+}
+
+.ddj-tempo {
+    flex: 1 1 auto;
+    width: 0.72rem;
+    min-height: 4rem;
+    position: relative;
+    border: 1px solid rgba(var(--ddj), 0.35);
+    background:
+        repeating-linear-gradient(
+            to top,
+            transparent 0,
+            transparent calc(12.5% - 1px),
+            rgba(var(--ddj), 0.18) calc(12.5% - 1px),
+            rgba(var(--ddj), 0.18) 12.5%
+        ),
+        rgba(0, 0, 0, 0.7);
+    cursor: pointer;
+    touch-action: none;
+}
+
+.ddj-tempo-fill {
+    position: absolute;
+    left: 18%;
+    right: 18%;
+    bottom: 0;
+    height: 50%;
+    background: linear-gradient(to top, rgba(var(--ddj), 0.55), rgba(var(--ddj), 0.08));
+    pointer-events: none;
+}
+
+.ddj-tempo-cap {
+    position: absolute;
+    left: -22%;
+    right: -22%;
+    height: 0.48rem;
+    margin-top: -0.24rem;
+    top: 50%;
+    border: 1px solid rgba(var(--ddj), 0.8);
+    background: rgba(22, 24, 28, 0.98);
+    pointer-events: none;
+}
+
+.ddj-deck-btns {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.15rem;
+}
+
+.ddj-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.08rem;
+    min-height: 1.4rem;
+    padding: 0.1rem;
+    border: 1px solid rgba(var(--ddj), 0.28);
+    background: rgba(0, 0, 0, 0.55);
+    color: inherit;
+    font: inherit;
+    font-size: calc(var(--fs) * 0.3);
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    opacity: 0.75;
+}
+
+.ddj-btn:hover { opacity: 1; border-color: rgba(var(--ddj), 0.55); }
+.ddj-btn:active { transform: translateY(1px); }
+
+.ddj-btn .lamp {
+    width: 0.32rem;
+    height: 0.32rem;
+    border-radius: 50%;
+    background: rgba(var(--ddj), 0.1);
+    border: 1px solid rgba(var(--ddj), 0.25);
+}
+
+.ddj-btn.on {
+    opacity: 1;
+    border-color: rgba(var(--ddj), 0.85);
+    background: rgba(var(--ddj), 0.15);
+}
+
+.ddj-btn.on .lamp {
+    background: rgb(var(--ddj));
+    box-shadow: 0 0 0.3rem rgba(var(--ddj), 0.85);
+}
+
+.ddj-transport {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1.15fr 1fr;
+    gap: 0.2rem;
+    align-items: center;
+}
+
+.ddj-round {
+    width: 2.4rem;
+    height: 2.4rem;
+    margin: 0 auto;
+    border-radius: 50%;
+    border: 1px solid rgba(var(--ddj), 0.4);
+    background:
+        radial-gradient(circle at 40% 35%, rgba(255, 255, 255, 0.08), transparent 45%),
+        rgba(10, 12, 14, 0.95);
+    box-shadow: inset 0 0.08rem 0.15rem rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.08rem;
+    color: inherit;
+    font: inherit;
+    font-size: calc(var(--fs) * 0.3);
+    letter-spacing: 0.04em;
+    cursor: pointer;
+}
+
+.ddj-round.play.on {
+    border-color: rgba(var(--ddj), 0.95);
+    box-shadow:
+        0 0 0.55rem rgba(var(--ddj), 0.45),
+        inset 0 0 0.4rem rgba(var(--ddj), 0.2);
+}
+
+.ddj-round .lamp {
+    width: 0.35rem;
+    height: 0.35rem;
+    border-radius: 50%;
+    background: rgba(var(--ddj), 0.15);
+    border: 1px solid rgba(var(--ddj), 0.3);
+}
+
+.ddj-round.on .lamp,
+.ddj-round.play.on .lamp {
+    background: rgb(var(--ddj));
+    box-shadow: 0 0 0.35rem rgba(var(--ddj), 0.9);
+}
+
+.ddj-pad-modes {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.12rem;
+}
+
+.ddj-pad-modes .ddj-btn {
+    min-height: 1.15rem;
+    font-size: calc(var(--fs) * 0.28);
+}
+
+.ddj-pads {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(2, 2.35rem);
+    gap: 0.2rem;
+}
+
+.ddj-pad {
+    border: 1px solid rgba(var(--ddj), 0.28);
+    background: rgba(0, 0, 0, 0.55);
+    border-radius: 0.1rem;
+    color: transparent;
+    font-size: 0;
+    cursor: pointer;
+    box-shadow: inset 0 -0.1rem 0 rgba(0, 0, 0, 0.55);
+    transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.ddj-pad:hover { border-color: rgba(var(--ddj), 0.55); }
+
+.ddj-pad:active,
+.ddj-pad.hit {
+    transform: translateY(1px);
+}
+
+/* Blank pads — each click cycles a distinct backlight color */
+.ddj-pad[data-pad-color="1"] {
+    border-color: #ff3b30;
+    background: rgba(255, 59, 48, 0.42);
+    box-shadow: 0 0 0.45rem rgba(255, 59, 48, 0.55);
+}
+.ddj-pad[data-pad-color="2"] {
+    border-color: #ff9500;
+    background: rgba(255, 149, 0, 0.42);
+    box-shadow: 0 0 0.45rem rgba(255, 149, 0, 0.55);
+}
+.ddj-pad[data-pad-color="3"] {
+    border-color: #ffcc00;
+    background: rgba(255, 204, 0, 0.4);
+    box-shadow: 0 0 0.45rem rgba(255, 204, 0, 0.5);
+}
+.ddj-pad[data-pad-color="4"] {
+    border-color: #34c759;
+    background: rgba(52, 199, 89, 0.42);
+    box-shadow: 0 0 0.45rem rgba(52, 199, 89, 0.55);
+}
+.ddj-pad[data-pad-color="5"] {
+    border-color: #00c7be;
+    background: rgba(0, 199, 190, 0.42);
+    box-shadow: 0 0 0.45rem rgba(0, 199, 190, 0.55);
+}
+.ddj-pad[data-pad-color="6"] {
+    border-color: #32ade6;
+    background: rgba(50, 173, 230, 0.42);
+    box-shadow: 0 0 0.45rem rgba(50, 173, 230, 0.55);
+}
+.ddj-pad[data-pad-color="7"] {
+    border-color: #5856d6;
+    background: rgba(88, 86, 214, 0.45);
+    box-shadow: 0 0 0.45rem rgba(88, 86, 214, 0.55);
+}
+.ddj-pad[data-pad-color="8"] {
+    border-color: #af52de;
+    background: rgba(175, 82, 222, 0.45);
+    box-shadow: 0 0 0.45rem rgba(175, 82, 222, 0.55);
+}
+
+/* —— mixer —— */
+.ddj-mixer-head {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: space-between;
+    font-size: calc(var(--fs) * 0.36);
+    letter-spacing: 0.1em;
+    opacity: 0.7;
+}
+
+.ddj-fx-row {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1.15fr;
+    gap: 0.22rem;
+}
+
+.ddj-fx-block {
+    border: 1px solid rgba(var(--ddj), 0.2);
+    background: rgba(0, 0, 0, 0.35);
+    padding: 0.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.18rem;
+}
+
+.ddj-fx-block h4 {
+    margin: 0;
+    font-size: calc(var(--fs) * 0.32);
+    letter-spacing: 0.1em;
+    font-weight: 400;
+    opacity: 0.6;
+}
+
+.ddj-fx-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.12rem;
+}
+
+.ddj-fx-grid button,
+.ddj-fx-select button {
+    padding: 0.18rem 0.12rem;
+    border: 1px solid rgba(var(--ddj), 0.28);
+    background: rgba(0, 0, 0, 0.5);
+    color: inherit;
+    font: inherit;
+    font-size: calc(var(--fs) * 0.28);
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    opacity: 0.65;
+}
+
+.ddj-fx-grid button.active,
+.ddj-fx-select button.active {
+    opacity: 1;
+    border-color: rgba(var(--ddj), 0.9);
+    background: rgba(var(--ddj), 0.16);
+    box-shadow: 0 0 0.35rem rgba(var(--ddj), 0.25);
+}
+
+.ddj-fx-lcd {
+    border: 1px solid rgba(var(--ddj), 0.3);
+    background: rgba(0, 0, 0, 0.75);
+    padding: 0.2rem 0.28rem;
+    font-size: calc(var(--fs) * 0.32);
+    letter-spacing: 0.06em;
+    line-height: 1.35;
+    min-height: 2.4rem;
+}
+
+.ddj-fx-lcd b { font-weight: 400; }
+.ddj-fx-lcd .sub { opacity: 0.55; font-size: 0.9em; }
+
+.ddj-fx-select {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.1rem;
+}
+
+.ddj-knob-row {
+    display: flex;
+    justify-content: space-around;
+    gap: 0.15rem;
+}
+
+.ddj-knob-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.08rem;
+}
+
+.ddj-knob {
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 50%;
+    border: 1px solid rgba(var(--ddj), 0.5);
+    background:
+        radial-gradient(circle at 38% 32%, rgba(255, 255, 255, 0.12), transparent 42%),
+        rgba(14, 16, 20, 0.98);
+    box-shadow: 0 0.08rem 0.15rem rgba(0, 0, 0, 0.55);
+    position: relative;
+    cursor: ns-resize;
+    touch-action: none;
+    flex: 0 0 auto;
+}
+
+.ddj-knob i {
+    position: absolute;
+    left: 50%;
+    top: 0.1rem;
+    width: 2px;
+    height: 32%;
+    margin-left: -1px;
+    background: rgb(var(--ddj));
+    border-radius: 1px;
+}
+
+.ddj-knob-wrap span {
+    font-size: calc(var(--fs) * 0.26);
+    letter-spacing: 0.04em;
+    opacity: 0.55;
+}
+
+.ddj-color-knob-wrap {
+    width: 100%;
+    padding: 0.15rem 0;
+    background: var(--ddj-dot) 0 0 / 3px 3px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1rem;
+}
+
+.ddj-color-knob-wrap .ddj-knob {
+    width: 1.55rem;
+    height: 1.55rem;
+}
+
+.ddj-color-scale {
+    display: flex;
+    justify-content: space-between;
+    width: 90%;
+    font-size: calc(var(--fs) * 0.22);
+    opacity: 0.45;
+}
+
+.ddj-channels {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.18rem;
+}
+
+.ddj-ch {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.12rem;
+    padding: 0.15rem 0.06rem;
+    border: 1px solid rgba(var(--ddj), 0.14);
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.ddj-ch-label {
+    font-size: calc(var(--fs) * 0.42);
+    letter-spacing: 0.08em;
+    opacity: 0.9;
+}
+
+.ddj-meter {
+    width: 0.35rem;
+    height: 1.8rem;
+    border: 1px solid rgba(var(--ddj), 0.3);
+    background: rgba(0, 0, 0, 0.6);
+    position: relative;
+    overflow: hidden;
+}
+
+.ddj-meter > i {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 20%;
+    background: rgb(var(--ddj));
+    opacity: 0.85;
+    pointer-events: none;
+}
+
+.ddj-ch .ddj-knob-wrap .ddj-knob {
+    width: 1.1rem;
+    height: 1.1rem;
+}
+
+.ddj-chcue {
+    width: 100%;
+    min-height: 1.15rem;
+    border: 1px solid rgba(var(--ddj), 0.45);
+    background: rgba(0, 0, 0, 0.5);
+    color: inherit;
+    font: inherit;
+    font-size: calc(var(--fs) * 0.28);
+    letter-spacing: 0.08em;
+    cursor: pointer;
+}
+
+.ddj-chcue.on {
+    border-color: rgba(var(--ddj), 0.95);
+    background: rgba(var(--ddj), 0.2);
+    box-shadow: 0 0 0.4rem rgba(var(--ddj), 0.4);
+    color: rgb(var(--ddj));
+}
+
+.ddj-ch-fader-wrap {
+    flex: 1 1 auto;
+    min-height: 3.6rem;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+    gap: 0.18rem;
+    padding: 0.05rem 0;
+}
+
+.ddj-ch-fader {
+    position: relative;
+    width: 0.72rem;
+    flex: 0 0 0.72rem;
+    border: 1px solid rgba(var(--ddj), 0.35);
+    background:
+        repeating-linear-gradient(
+            to top,
+            transparent 0,
+            transparent calc(10% - 1px),
+            rgba(var(--ddj), 0.12) calc(10% - 1px),
+            rgba(var(--ddj), 0.12) 10%
+        ),
+        rgba(0, 0, 0, 0.7);
+    cursor: pointer;
+    touch-action: none;
+    min-height: 3.4rem;
+}
+
+.ddj-ch-fader .fill {
+    position: absolute;
+    left: 18%;
+    right: 18%;
+    bottom: 0;
+    height: 75%;
+    background: linear-gradient(to top, rgba(var(--ddj), 0.65), rgba(var(--ddj), 0.08));
+    pointer-events: none;
+}
+
+.ddj-ch-fader .cap {
+    position: absolute;
+    left: -18%;
+    right: -18%;
+    height: 0.42rem;
+    margin-top: -0.21rem;
+    top: 25%;
+    border: 1px solid rgba(var(--ddj), 0.8);
+    background: rgba(22, 24, 28, 0.98);
+    pointer-events: none;
+}
+
+/* Side tick marks only — no numeric labels */
+.ddj-fader-ticks {
+    width: 0.35rem;
+    align-self: stretch;
+    background:
+        repeating-linear-gradient(
+            to bottom,
+            rgba(var(--ddj), 0.55) 0,
+            rgba(var(--ddj), 0.55) 1px,
+            transparent 1px,
+            transparent 10%
+        );
+    opacity: 0.7;
+    margin: 0.1rem 0;
+}
+
+.ddj-master-row {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.2rem;
+}
+
+.ddj-master-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    align-items: center;
+}
+
+.ddj-master-block > span {
+    font-size: calc(var(--fs) * 0.28);
+    letter-spacing: 0.08em;
+    opacity: 0.6;
+}
+
+.ddj-h-fader {
+    width: 100%;
+    height: 0.9rem;
+    position: relative;
+    border: 1px solid rgba(var(--ddj), 0.35);
+    background: rgba(0, 0, 0, 0.55);
+    cursor: pointer;
+    touch-action: none;
+}
+
+.ddj-h-fader .fill {
+    position: absolute;
+    left: 0;
+    top: 18%;
+    bottom: 18%;
+    width: 70%;
+    background: rgba(var(--ddj), 0.45);
+    pointer-events: none;
+}
+
+.ddj-h-fader .cap {
+    position: absolute;
+    top: 8%;
+    bottom: 8%;
+    width: 0.45rem;
+    margin-left: -0.22rem;
+    left: 70%;
+    border: 1px solid rgba(var(--ddj), 0.8);
+    background: rgba(22, 24, 28, 0.98);
+    pointer-events: none;
+}
+
+.ddj-xfader-wrap {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1rem;
+}
+
+.ddj-xfader-wrap > span {
+    font-size: calc(var(--fs) * 0.3);
+    letter-spacing: 0.12em;
+    opacity: 0.65;
+}
+
+.ddj-xfader {
+    width: 100%;
+    height: 1.1rem;
+    position: relative;
+    border: 1px solid rgba(var(--ddj), 0.4);
+    background:
+        linear-gradient(90deg, rgba(var(--ddj), 0.12), transparent 48%, transparent 52%, rgba(var(--ddj), 0.12)),
+        rgba(0, 0, 0, 0.65);
+    cursor: pointer;
+    touch-action: none;
+}
+
+.ddj-xfader .cap {
+    position: absolute;
+    top: 8%;
+    bottom: 8%;
+    width: 0.95rem;
+    margin-left: -0.48rem;
+    left: 50%;
+    border: 1px solid rgba(var(--ddj), 0.85);
+    background: rgba(22, 24, 28, 0.98);
+    pointer-events: none;
+}
+
+.ddj-xfader.dragging .cap,
+.ddj-ch-fader.dragging .cap,
+.ddj-tempo.dragging .ddj-tempo-cap,
+.ddj-h-fader.dragging .cap {
+    box-shadow: 0 0 0.35rem rgba(var(--ddj), 0.55);
+}
+
+.ddj-status {
+    flex: 0 0 auto;
+    font-size: calc(var(--fs) * 0.38);
+    letter-spacing: 0.1em;
+    opacity: 0.65;
+    text-align: center;
+    border-top: 1px solid rgba(var(--ddj), 0.16);
+    padding-top: 0.1rem;
+}
+
+#card_ddj .card-body {
+    min-height: 0;
+    overflow: hidden;
+}
+
+#card_ddj .card-body > #mod_ddj {
+    height: 100%;
+}

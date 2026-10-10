@@ -17,30 +17,17 @@ const DESK_FILTERS = [
   ...FILE_FORMAT_FILTERS
 ];
 
-const RULES = [
-  ["文件", "pdf doc xls ppt txt md"],
-  ["圖片", "jpg png gif webp svg"],
-  ["影片", "mp4 mkv avi mov"],
-  ["音樂", "mp3 wav flac"],
-  ["壓縮檔", "zip rar 7z"],
-  ["捷徑", "lnk url"],
-  ["應用程式", "exe msi"],
-  ["其他", "未分類檔案"]
-];
+const REMOVED_PANELS = new Set(["sysinfo", "hw", "netstat", "shortcuts"]);
 
 const DEFAULT_WIDGETS_PRIMARY = {
   clock: { x: 1.2, y: 2, w: 16, h: 8 },
-  sysinfo: { x: 1.2, y: 13, w: 16, h: 8 },
-  hw: { x: 1.2, y: 22, w: 16, h: 8 },
-  cpu: { x: 1.2, y: 31, w: 16, h: 20 },
-  ram: { x: 1.2, y: 52, w: 16, h: 16 },
-  toplist: { x: 1.2, y: 69, w: 16, h: 18 },
-  netstat: { x: 82, y: 2, w: 16.5, h: 12 },
-  globe: { x: 82, y: 15, w: 16.5, h: 48 },
-  conninfo: { x: 82, y: 64, w: 16.5, h: 23 },
+  cpu: { x: 1.2, y: 13, w: 16, h: 20 },
+  ram: { x: 1.2, y: 34, w: 16, h: 16 },
+  toplist: { x: 1.2, y: 51, w: 16, h: 18 },
+  globe: { x: 82, y: 2, w: 16.5, h: 48 },
+  conninfo: { x: 82, y: 52, w: 16.5, h: 23 },
   calendar: { x: 66, y: 2, w: 15, h: 38 },
-  shortcuts: { x: 66, y: 42, w: 15, h: 28 },
-  drives: { x: 66, y: 72, w: 15, h: 25 },
+  drives: { x: 66, y: 42, w: 15, h: 38 },
   filesearch: { x: 18, y: 82, w: 47, h: 16 }
 };
 
@@ -53,22 +40,20 @@ const DEFAULT_DESKTOP_SECONDARY = { x: 8, y: 8, w: 84, h: 84 };
 const PANEL_META = {
   clock: { title: "時鐘", box: { x: 1.2, y: 2, w: 16, h: 8 } },
   coderain: { title: "瀑布代碼", box: { x: 34, y: 64, w: 16, h: 22 } },
-  sysinfo: { title: "系統", box: { x: 1.2, y: 13, w: 16, h: 8 } },
-  hw: { title: "硬體", box: { x: 1.2, y: 22, w: 16, h: 8 } },
-  cpu: { title: "處理器", box: { x: 1.2, y: 31, w: 16, h: 20 } },
-  ram: { title: "記憶體", box: { x: 1.2, y: 52, w: 16, h: 16 } },
-  toplist: { title: "進程", box: { x: 1.2, y: 69, w: 16, h: 18 } },
-  netstat: { title: "網路狀態", box: { x: 82, y: 2, w: 16.5, h: 12 } },
-  globe: { title: "地球視圖", box: { x: 82, y: 15, w: 16.5, h: 48 } },
-  conninfo: { title: "網路流量", box: { x: 82, y: 64, w: 16.5, h: 23 } },
+  cpu: { title: "處理器", box: { x: 1.2, y: 13, w: 16, h: 20 } },
+  ram: { title: "記憶體", box: { x: 1.2, y: 34, w: 16, h: 16 } },
+  toplist: { title: "進程", box: { x: 1.2, y: 51, w: 16, h: 18 } },
+  globe: { title: "地球視圖", box: { x: 82, y: 2, w: 16.5, h: 48 } },
+  conninfo: { title: "網路流量", box: { x: 82, y: 52, w: 16.5, h: 23 } },
   calendar: { title: "日曆", box: { x: 66, y: 2, w: 15, h: 38 } },
-  shortcuts: { title: "桌面捷徑", box: { x: 66, y: 42, w: 15, h: 28 } },
-  drives: { title: "本機磁碟", box: { x: 66, y: 72, w: 15, h: 25 } },
+  drives: { title: "本機磁碟", box: { x: 66, y: 42, w: 15, h: 38 } },
   filesearch: { title: "快速搜尋", box: { x: 18, y: 82, w: 47, h: 16 } },
-  cats: { title: "分類負載", box: { x: 1.2, y: 26, w: 16, h: 20 } },
-  fill: { title: "空間", box: { x: 1.2, y: 47, w: 16, h: 12 } },
-  rules: { title: "分類規則", box: { x: 82, y: 18, w: 16.5, h: 24 } },
-  log: { title: "操作紀錄", box: { x: 1.2, y: 77, w: 16, h: 10 } }
+  cursorChat: { title: "對話聯動", box: { x: 52, y: 48, w: 30, h: 48 } },
+  cockpit: { title: "駕駛室", box: { x: 20, y: 22, w: 38, h: 54 } },
+  cassette: { title: "音樂磁帶", box: { x: 28, y: 28, w: 36, h: 38 } },
+  ddj: { title: "DDJ-1000", box: { x: 8, y: 6, w: 84, h: 86 } },
+  cpuRail: { title: "CPU 供電路徑", box: { x: 20, y: 28, w: 42, h: 40 } },
+  calculator: { title: "計算器", box: { x: 40, y: 18, w: 18, h: 48 } }
 };
 
 const MACOS_TAGS = [
@@ -110,13 +95,21 @@ const state = {
   desktopLocked: false,
   desktopFilter: "all",
   desktopGrouped: false,
+  desktopTabId: "classify",
+  desktopFolderTabs: [],
   iconPositions: {},
   zTop: 10,
   clockTimer: null,
   calCursor: new Date(),
   calSelected: null,
   calNotes: {},
-  desktopListing: null
+  desktopListing: null,
+  cursorChatTimer: null,
+  cockpitRaf: null,
+  cockpitMatrixTimer: null,
+  cassetteRaf: null,
+  ddjRaf: null,
+  ddjResizeObs: null
 };
 
 function defaultWidgets() {
@@ -188,15 +181,6 @@ function panelBody(id) {
           <h1>TOP PROCESSES<i>PID | NAME | CPU | MEM</i></h1>
           <table id="mod_toplist_table"></table>
         </div>`;
-    case "cats":
-      return `<div id="category_bars"></div>`;
-    case "fill":
-      return `
-        <div class="mod-fillmap">
-          <h1>STORAGE MAP</h1>
-          <div class="fill-label">桌面佔用 <span id="fill_label">0 B</span></div>
-          <div id="fill_pointmap"></div>
-        </div>`;
     case "ram":
       return `
         <div id="mod_ramwatcher">
@@ -229,15 +213,13 @@ function panelBody(id) {
       return `
         <div id="mod_cpuinfo">
           <div id="mod_cpuinfo_innercontainer">
-            <h1>CPU USAGE<i>—</i></h1>
-            <div id="mod_cpuinfo_corebars" class="cpu-corebars"></div>
-            <div class="cpu-chart-row">
-              <h1># <em id="mod_cpuinfo_range0">1</em><br><i id="mod_cpuinfo_usagecounter0">Avg. --%</i></h1>
-              <canvas id="mod_cpuinfo_canvas_0" height="60"></canvas>
-            </div>
-            <div class="cpu-chart-row">
-              <h1># <em id="mod_cpuinfo_range1">N</em><br><i id="mod_cpuinfo_usagecounter1">Avg. --%</i></h1>
-              <canvas id="mod_cpuinfo_canvas_1" height="60"></canvas>
+            <h1>CPU USAGE<i id="mod_cpuinfo_name">—</i></h1>
+            <div class="cpu-total-row">
+              <div class="cpu-total-load" data-cpu-level="ok">
+                <span class="cpu-total-label">TOTAL LOAD</span>
+                <strong id="mod_cpuinfo_total">—%</strong>
+              </div>
+              <div id="mod_cpuinfo_pointmap" class="edex-pointmap" data-cols="48" data-rows="12" aria-hidden="true"></div>
             </div>
             <div class="cpu-meta-row">
               <div>
@@ -283,15 +265,17 @@ function panelBody(id) {
           <div id="mod_conninfo_innercontainer">
             <h1>NETWORK TRAFFIC<i>UP / DOWN</i></h1>
             <h2>TOTAL<i>— / —</i></h2>
-            <canvas id="mod_conninfo_canvas_top"></canvas>
-            <canvas id="mod_conninfo_canvas_bottom"></canvas>
+            <div class="conn-pointmap-block">
+              <div class="conn-pointmap-label">UP</div>
+              <div id="mod_conninfo_pointmap_up" class="edex-pointmap edex-pointmap-up" data-cols="48" data-rows="10" aria-hidden="true"></div>
+            </div>
+            <div class="conn-pointmap-block">
+              <div class="conn-pointmap-label">DOWN</div>
+              <div id="mod_conninfo_pointmap_down" class="edex-pointmap edex-pointmap-down" data-cols="48" data-rows="10" aria-hidden="true"></div>
+            </div>
             <h3>OFFLINE</h3>
           </div>
         </div>`;
-    case "rules":
-      return `<div id="rules_list"></div>`;
-    case "log":
-      return `<div class="log" id="op_log">待命中。</div>`;
     case "calendar":
       return `
         <div class="cal-root">
@@ -303,8 +287,6 @@ function panelBody(id) {
           <div class="cal-weekdays"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span class="sun">日</span></div>
           <div id="cal_grid" class="cal-grid"></div>
         </div>`;
-    case "shortcuts":
-      return `<div id="shortcuts-stage" class="path-stage view-grid"></div>`;
     case "drives":
       return `<div id="drives-stage" class="drives-stage"></div>`;
     case "filesearch":
@@ -317,6 +299,18 @@ function panelBody(id) {
           <div class="fs-status" id="fs_status">輸入關鍵字開始搜尋</div>
           <div class="fs-results" id="fs_results"></div>
         </div>`;
+    case "cursorChat":
+      return window.cursorChatPanel?.bodyHtml?.() || `<div class="path-empty">對話聯動模組未載入</div>`;
+    case "cockpit":
+      return window.cockpitPanel?.bodyHtml?.() || `<div class="path-empty">駕駛室模組未載入</div>`;
+    case "cassette":
+      return window.cassettePanel?.bodyHtml?.() || `<div class="path-empty">磁帶模組未載入</div>`;
+    case "ddj":
+      return window.ddjPanel?.bodyHtml?.() || `<div class="path-empty">DDJ 模組未載入</div>`;
+    case "cpuRail":
+      return window.cpuRailPanel?.bodyHtml?.() || `<div class="path-empty">CPU 供電路徑模組未載入</div>`;
+    case "calculator":
+      return window.calculatorPanel?.bodyHtml?.() || `<div class="path-empty">計算器模組未載入</div>`;
     default:
       return "";
   }
@@ -418,29 +412,207 @@ function escapeHtml(text) {
     .replace(/"/g, "&quot;");
 }
 
+const HUD_HIT_SEL = ".hud-card, .path-card, .program-card, .desktop-card, .card-menu, .color-palette, #fab-bar, .modal_popup, .round-fab, .toast";
+
+function pointHitsHud(x, y) {
+  if (document.body.classList.contains("is-ui-hold")) return true;
+  try {
+    const stack = document.elementsFromPoint(x, y) || [];
+    for (const el of stack) {
+      if (el?.closest?.(HUD_HIT_SEL)) return true;
+    }
+  } catch {
+    // ignore
+  }
+  for (const node of document.querySelectorAll(HUD_HIT_SEL)) {
+    const r = node.getBoundingClientRect();
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return true;
+  }
+  return false;
+}
+
+function deskIconAt(x, y) {
+  try {
+    const stack = document.elementsFromPoint(x, y) || [];
+    for (const el of stack) {
+      const icon = el?.closest?.(".desk-icon[data-path]");
+      if (icon) return icon;
+    }
+  } catch {
+    // ignore
+  }
+  for (const icon of document.querySelectorAll(".desk-icon[data-path]")) {
+    const r = icon.getBoundingClientRect();
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return icon;
+  }
+  return null;
+}
+
 function setupDesktopClickThrough() {
   if (!window.edex?.setMouseIgnore) return;
   let ignoring = true;
   window.edex.setMouseIgnore(true);
-  const hitTest = (target) => Boolean(
-    target?.closest?.(".hud-card, .path-card, .desktop-card, .card-menu, .color-palette, #fab-bar, .modal_popup, .round-fab")
-  );
-  const sync = (event) => {
-    const blocking = document.querySelector(".dragging, .card-menu, .modal_popup, .drop-target, .color-palette");
-    const nextIgnore = !hitTest(event.target) && !blocking;
+  const forceCapture = () => {
+    if (ignoring) {
+      ignoring = false;
+      window.edex.setMouseIgnore(false);
+    }
+  };
+  const applyAt = (x, y) => {
+    if (document.body.classList.contains("is-ui-hold")) {
+      forceCapture();
+      return;
+    }
+    if (document.body.classList.contains("is-file-dragging")) return;
+    const overHud = pointHitsHud(x, y);
+    if (document.body.classList.contains("is-file-drag-armed") && overHud) {
+      forceCapture();
+      return;
+    }
+    const blocking = document.querySelector(
+      ".dragging, .is-file-dragging, .card-menu, .modal_popup, .drop-target, .color-palette"
+    );
+    const nextIgnore = !overHud && !blocking;
     if (nextIgnore === ignoring) return;
     ignoring = nextIgnore;
     window.edex.setMouseIgnore(nextIgnore);
   };
-  document.addEventListener("pointermove", sync, true);
-  document.addEventListener("pointerdown", sync, true);
+  // Poll OS cursor even while click-through — forwarded mousemove alone is unreliable
+  // for the first click on desktop icons (ignore still true → click falls to wallpaper).
+  const poll = () => {
+    if (document.visibilityState === "hidden") return;
+    if (fileDragBlocksHitPoll()) return;
+    const pt = window.edex.getCursorClientPoint?.();
+    if (!pt || !Number.isFinite(pt.x) || !Number.isFinite(pt.y)) return;
+    applyAt(pt.x, pt.y);
+  };
+  clearInterval(setupDesktopClickThrough._timer);
+  setupDesktopClickThrough._timer = setInterval(poll, 32);
+  document.addEventListener("pointermove", (event) => {
+    applyAt(event.clientX, event.clientY);
+  }, { capture: true, passive: true });
+  document.addEventListener("pointerdown", (event) => {
+    applyAt(event.clientX, event.clientY);
+  }, true);
   window.addEventListener("dragover", (event) => {
     if (![...event.dataTransfer.types].includes("Files")) return;
-    if (hitTest(event.target)) {
-      ignoring = false;
-      window.edex.setMouseIgnore(false);
-    }
+    if (pointHitsHud(event.clientX, event.clientY)) forceCapture();
   }, true);
+}
+
+function fileDragBlocksHitPoll() {
+  return document.body.classList.contains("is-file-dragging");
+}
+
+function itemFromDeskNode(icon) {
+  if (!icon) return null;
+  try {
+    if (icon.dataset.itemJson) return JSON.parse(icon.dataset.itemJson);
+  } catch {
+    // fall through
+  }
+  return itemFromIcon(icon);
+}
+
+function bindDesktopIconClicks() {
+  if (document.documentElement.dataset.iconClicksBound === "1") return;
+  document.documentElement.dataset.iconClicksBound = "1";
+  let pairCtrl = false;
+  let lastPath = "";
+  let lastAt = 0;
+  const runActivate = (icon, ctrl) => {
+    if (!icon) return;
+    holdOverlayHits(1500);
+    activateDesktopItem(itemFromDeskNode(icon), { ctrl });
+  };
+  // Prefer native detail===2; also accept a timed second click (some overlay builds drop detail).
+  document.addEventListener("click", (event) => {
+    if (event.button !== 0) return;
+    const icon = event.target?.closest?.(".desk-icon[data-path]") || deskIconAt(event.clientX, event.clientY);
+    if (!icon) return;
+    holdOverlayHits(1500);
+    if (event.ctrlKey || event.metaKey) pairCtrl = true;
+    const path = icon.dataset.path || "";
+    const now = Date.now();
+    const timedDbl = now - lastAt < 500 && lastPath === path;
+    lastAt = now;
+    lastPath = path;
+    if (event.detail !== 2 && !timedDbl) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const ctrl = event.ctrlKey || event.metaKey || pairCtrl;
+    pairCtrl = false;
+    runActivate(icon, ctrl);
+  }, true);
+  document.addEventListener("dblclick", (event) => {
+    const icon = event.target?.closest?.(".desk-icon[data-path]") || deskIconAt(event.clientX, event.clientY);
+    if (!icon) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    runActivate(icon, event.ctrlKey || event.metaKey || pairCtrl);
+    pairCtrl = false;
+  }, true);
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    const selected = document.querySelector(
+      "#desktop-stage .desk-icon.selected[data-path], .path-stage .desk-icon.selected[data-path]"
+    );
+    if (!selected) return;
+    event.preventDefault();
+    runActivate(selected, event.ctrlKey || event.metaKey);
+  }, true);
+}
+
+let overlayHoldTimer = 0;
+function holdOverlayHits(ms = 800) {
+  document.body.classList.add("is-ui-hold");
+  window.edex?.setMouseIgnore?.(false);
+  clearTimeout(overlayHoldTimer);
+  overlayHoldTimer = setTimeout(() => {
+    document.body.classList.remove("is-ui-hold");
+  }, ms);
+}
+
+function activateDesktopItem(item, { ctrl = false } = {}) {
+  if (!item?.path && !item?.targetPath) {
+    toast("無法開啟此項目");
+    return;
+  }
+  document.body.classList.remove("is-file-drag-armed", "is-file-dragging");
+  window.edex?.setFileDragArmed?.(false);
+  window.edex?.cancelFileDragPrepare?.();
+  hideFileDragGhost();
+  holdOverlayHits(1500);
+  const folder = resolveFolderForTab(item);
+  if (ctrl) {
+    if (folder) {
+      toast(`正在加入標籤「${folder.name || folderTabTitle(folder.path)}」`);
+      openFolderInDesktopTab(folder);
+      return;
+    }
+    toast("請對資料夾（或資料夾捷徑）使用 Ctrl+雙擊");
+    return;
+  }
+  const openPath = folder?.path || item.targetPath || item.path;
+  if (!openPath) {
+    toast("無法開啟此項目");
+    return;
+  }
+  const title = folder?.name || itemLabel(item) || "項目";
+  toast(`正在開啟「${title}」`);
+  Promise.resolve(window.edex.openPath(openPath))
+    .then((result) => {
+      if (result && result.ok === false) {
+        toast(result.message || `無法開啟「${title}」`);
+        return;
+      }
+      if (result?.path && result.path !== openPath) {
+        toast(`已開啟「${title}」`);
+      }
+    })
+    .catch((err) => {
+      toast(err?.message || "開啟失敗");
+    });
 }
 
 function toast(message) {
@@ -786,6 +958,59 @@ function separateLayoutRects() {
   });
 }
 
+/** Occupied card rects from layout state (DOM may not exist yet during add). */
+function occupiedLayoutRects(exclude = {}) {
+  const rects = [];
+  Object.keys(state.layout).forEach((id) => {
+    if (id === "status" || !state.layout[id]) return;
+    if (exclude.panelId === id) return;
+    rects.push(pxFromBox(state.layout[id]));
+  });
+  if (state.desktopEnabled !== false && state.desktopStage && !exclude.desktop) {
+    rects.push(pxFromBox(state.desktopStage));
+  }
+  (state.pathCards || []).forEach((card) => {
+    if (exclude.pathId === card.id) return;
+    rects.push(pxFromBox(card));
+  });
+  return rects;
+}
+
+/**
+ * Place a new card in the first free grid slot (row-major), preferring the
+ * suggested box when it does not overlap existing containers/plugins.
+ */
+function findEmptyBox(preferredBox, exclude = {}) {
+  const g = gridSize();
+  const ws = workspaceRect();
+  const base = snapBoxVwVh({ ...(preferredBox || {}) });
+  let { x, y, w, h } = pxFromBox(base);
+  w = alignGridSpan(w, 2);
+  h = alignGridSpan(h, 2);
+  const others = occupiedLayoutRects(exclude);
+  const fits = (rect) => (
+    rect.x >= 0
+    && rect.y >= 0
+    && rect.x + rect.w <= ws.width + g
+    && rect.y + rect.h <= ws.height + g
+    && !overlapsAny(rect, others)
+  );
+  if (fits({ x, y, w, h })) {
+    return snapBoxVwVh({ ...base, ...pxToGridFields(x, y, w, h) });
+  }
+  const maxDx = Math.max(0, Math.floor(Math.max(0, ws.width - w) / g));
+  const maxDy = Math.max(0, Math.floor(Math.max(0, ws.height - h) / g));
+  for (let dy = 0; dy <= maxDy; dy += 1) {
+    for (let dx = 0; dx <= maxDx; dx += 1) {
+      const rect = { x: dx * g, y: dy * g, w, h };
+      if (!fits(rect)) continue;
+      return snapBoxVwVh({ ...base, ...pxToGridFields(rect.x, rect.y, rect.w, rect.h) });
+    }
+  }
+  // Workspace full — keep preferred snapped position (user can drag later).
+  return snapBoxVwVh({ ...base, ...pxToGridFields(x, y, w, h) });
+}
+
 function workspaceRect() {
   const ws = document.getElementById("workspace");
   return {
@@ -1060,6 +1285,12 @@ function currentDisplayLayout() {
     desktopLocked: Boolean(state.desktopLocked),
     desktopFilter: state.desktopFilter || "all",
     desktopGrouped: Boolean(state.desktopGrouped),
+    desktopTabId: state.desktopTabId || "classify",
+    desktopFolderTabs: (state.desktopFolderTabs || []).map((tab) => ({
+      id: tab.id,
+      path: tab.path,
+      name: tab.name
+    })),
     pathCards: state.pathCards.map((card) => ({
       id: card.id,
       path: card.path,
@@ -1184,6 +1415,10 @@ async function maybeTransferCard(el, x, y, w, h, opts) {
     placeY = g;
   }
   if (!target || !opts.widgetType) return false;
+  if (opts.widgetType === "desktop" && !target.primary) {
+    toast("系統桌面僅能顯示在主顯示器");
+    return false;
+  }
 
   const placed = pxToGridFields(placeX, placeY, w, h);
   const widget = {
@@ -1198,6 +1433,7 @@ async function maybeTransferCard(el, x, y, w, h, opts) {
     toast(`已移至 ${target.label}`);
     return true;
   }
+  if (result?.message) toast(result.message);
   return false;
 }
 
@@ -1315,7 +1551,12 @@ function makeInteractive(el, opts) {
   const resize = el.querySelector(".resize-handle");
 
   handle.addEventListener("pointerdown", (event) => {
-    if (event.target.closest("button, .resize-handle, .view-toggle, .card-tools, .card-tool")) return;
+    if (event.target.closest(
+      "button, .resize-handle, .view-toggle, .card-tools, .card-tool, input, " +
+      ".cockpit-root, .cockpit-knob, .cockpit-pad-btn, .cockpit-fader, .cockpit-radar-wrap, .cockpit-sector, " +
+      "#mod_ddj, .ddj-jog, .ddj-knob, .ddj-tempo, .ddj-ch-fader, .ddj-h-fader, .ddj-xfader, .ddj-pad, .ddj-round, .ddj-chcue, " +
+      "#mod_cassette, .cass-btn, .cass-reel"
+    )) return;
     if (isCardLocked(el)) return;
     event.preventDefault();
     el.classList.add("dragging");
@@ -1617,7 +1858,12 @@ function menuItemsForCard(kind, ctx) {
       action: () => openAddPicker()
     }
   ];
-  const others = (state.displays || []).filter((d) => d.id !== state.displayId);
+  const others = (state.displays || []).filter((d) => {
+    if (d.id === state.displayId) return false;
+    // 系統桌面 only on the primary monitor.
+    if (ctx.widgetType === "desktop" && !d.primary) return false;
+    return true;
+  });
   if (others.length && ctx.widgetType) {
     items.push({ sep: true });
     others.forEach((d) => {
@@ -1683,20 +1929,6 @@ function menuItemsForCard(kind, ctx) {
           if (next == null) return;
           setClockScale(Number(next));
         }
-      }
-    );
-  }
-  if (kind === "panel" && ctx.widgetId === "shortcuts") {
-    const view = state.layout.shortcuts?.iconView === "list" ? "list" : "grid";
-    items.push(
-      { sep: true },
-      {
-        label: view === "list" ? "切換為網格" : "切換為列表",
-        action: () => toggleIconView("shortcuts")
-      },
-      {
-        label: "重新整理",
-        action: () => fillShortcutsStage()
       }
     );
   }
@@ -1982,7 +2214,8 @@ function bindFileDrop(el, getDest, onDone) {
     try {
       const result = await window.edex.importFiles(dest, files);
       toast(`已加入 ${result.count} 個項目`);
-      await onDone?.();
+      // Refresh immediately so dropped files appear without waiting on a slow full scan.
+      await onDone?.(result);
     } catch (err) {
       toast(err.message || "加入失敗");
     }
@@ -1990,9 +2223,29 @@ function bindFileDrop(el, getDest, onDone) {
 }
 
 function closePanel(id) {
+  if (id === "cursorChat") window.cursorChatPanel?.unbind?.(state);
+  if (id === "cockpit") {
+    if (state.cockpitRaf) cancelAnimationFrame(state.cockpitRaf);
+    if (state.cockpitMatrixTimer) clearInterval(state.cockpitMatrixTimer);
+    state.cockpitRaf = null;
+    state.cockpitMatrixTimer = null;
+  }
+  if (id === "cassette" && state.cassetteRaf) {
+    cancelAnimationFrame(state.cassetteRaf);
+    state.cassetteRaf = null;
+  }
+  if (id === "ddj") {
+    if (state.ddjRaf) cancelAnimationFrame(state.ddjRaf);
+    state.ddjRaf = null;
+    try { state.ddjResizeObs?.disconnect?.(); } catch { /* ignore */ }
+    state.ddjResizeObs = null;
+  }
   delete state.layout[id];
   document.querySelectorAll(`#card_${id}, [data-panel-id="${id}"]`).forEach((el) => el.remove());
-  persistLayout();
+  // Persist current display first, then strip this id from every saved layout.
+  Promise.resolve(persistLayout())
+    .then(() => purgePanelFromSavedLayouts(id))
+    .catch(() => {});
   toast(`已關閉「${PANEL_META[id]?.title || id}」`);
 }
 
@@ -2003,12 +2256,23 @@ function closeDesktopCard() {
   toast("已關閉桌面容器");
 }
 
+/** Keep「添加容器」open across rebuildWorkspace so users can add multiple items. */
+let keepAddPicker = false;
+
 function ensureDesktopCard() {
-  if (state.desktopEnabled !== false) return;
+  if (!state.primary) {
+    toast("系統桌面僅能顯示在主顯示器");
+    return;
+  }
+  if (state.desktopEnabled !== false) {
+    toast("桌面容器已存在");
+    return;
+  }
   state.desktopEnabled = true;
-  if (!state.desktopStage) state.desktopStage = defaultDesktop();
+  state.desktopStage = findEmptyBox(state.desktopStage || defaultDesktop(), { desktop: true });
   persistLayout();
   rebuildWorkspace();
+  toast("已添加桌面容器");
 }
 
 function addPanel(id) {
@@ -2017,16 +2281,20 @@ function addPanel(id) {
     toast("此顯示器已有該插件");
     return;
   }
-  state.layout[id] = snapBoxVwVh({ ...PANEL_META[id].box });
+  state.layout[id] = findEmptyBox({ ...PANEL_META[id].box }, { panelId: id });
   persistLayout();
   rebuildWorkspace();
   toast(`已添加「${PANEL_META[id].title}」`);
 }
 
 function openAddPicker() {
+  document.getElementById("addPickerModal")?.remove();
   document.getElementById("addPicker")?.closest(".modal_popup")?.remove();
+  keepAddPicker = true;
   const missing = Object.keys(PANEL_META).filter((id) => id !== "status" && !state.layout[id]);
+  const deskDisabled = !state.primary || state.desktopEnabled !== false;
   const modal = document.createElement("div");
+  modal.id = "addPickerModal";
   modal.className = "modal_popup info";
   modal.innerHTML = `
     <h1>添加容器</h1>
@@ -2040,30 +2308,64 @@ function openAddPicker() {
     </div>
     <h2>其他</h2>
     <div class="action-row">
-      <button type="button" id="add-desktop" ${state.desktopEnabled !== false ? "disabled" : ""}>桌面容器</button>
+      ${state.primary
+        ? `<button type="button" id="add-desktop" ${deskDisabled ? "disabled" : ""}>桌面容器</button>`
+        : `<span style="opacity:.6">系統桌面僅主顯示器</span>`}
       <button type="button" id="add-path">路徑容器</button>
     </div>
+    <p style="opacity:.55;margin:1vh 0 0;font-size:0.85em;">可連續添加，完成後按「關閉」</p>
     <div style="margin-top:1.2vh;display:flex;justify-content:flex-end;">
       <button type="button" id="add-cancel">關閉</button>
     </div>
   `;
   document.body.appendChild(modal);
   placeCentered(modal, { width: Math.min(520, window.innerWidth * 0.45), topRatio: 0.18 });
-  modal.querySelector("#add-cancel").onclick = () => modal.remove();
+  modal.querySelector("#add-cancel").onclick = () => {
+    keepAddPicker = false;
+    modal.remove();
+  };
   modal.querySelectorAll("[data-add-panel]").forEach((btn) => {
     btn.onclick = () => {
-      modal.remove();
       addPanel(btn.dataset.addPanel);
     };
   });
-  modal.querySelector("#add-desktop").onclick = () => {
-    modal.remove();
+  modal.querySelector("#add-desktop")?.addEventListener("click", () => {
     ensureDesktopCard();
-  };
+  });
   modal.querySelector("#add-path").onclick = async () => {
-    modal.remove();
+    // Folder dialog steals focus; reopen picker after pick completes.
+    modal.style.visibility = "hidden";
     await addPathCard();
+    if (keepAddPicker) openAddPicker();
   };
+}
+
+function stopPluginRuntimes() {
+  if (state.cockpitRaf) {
+    cancelAnimationFrame(state.cockpitRaf);
+    state.cockpitRaf = null;
+  }
+  if (state.cockpitMatrixTimer) {
+    clearInterval(state.cockpitMatrixTimer);
+    state.cockpitMatrixTimer = null;
+  }
+  if (state.cassetteRaf) {
+    cancelAnimationFrame(state.cassetteRaf);
+    state.cassetteRaf = null;
+  }
+  if (state.ddjRaf) {
+    cancelAnimationFrame(state.ddjRaf);
+    state.ddjRaf = null;
+  }
+  try { state.ddjResizeObs?.disconnect?.(); } catch { /* ignore */ }
+  state.ddjResizeObs = null;
+  if (state.cpuRailTimer) {
+    clearInterval(state.cpuRailTimer);
+    state.cpuRailTimer = null;
+  }
+  try { state.cpuRailResizeObs?.disconnect?.(); } catch { /* ignore */ }
+  state.cpuRailResizeObs = null;
+  window.cursorChatPanel?.unbind?.(state);
 }
 
 function buildLayout() {
@@ -2072,6 +2374,7 @@ function buildLayout() {
     cancelAnimationFrame(state.clockTimer);
     state.clockTimer = null;
   }
+  stopPluginRuntimes();
   window.edexEffects?.stop?.();
   delete state.layout.status;
 
@@ -2084,8 +2387,9 @@ function buildLayout() {
           ${cardToolsHtml()}
         </h3>
         <div class="card-body">
-          <p class="path-text" title="${escapeHtml(state.bootstrap?.desktop || "")}">${escapeHtml(state.bootstrap?.desktop || "")}</p>
-          <div class="desk-filter-bar">
+          <p class="path-text" id="desktop-path-text" title="${escapeHtml(state.bootstrap?.desktop || "")}">${escapeHtml(state.bootstrap?.desktop || "")}</p>
+          <div class="desk-tab-bar" id="desk-tab-bar"></div>
+          <div class="desk-filter-bar" id="desk-filter-bar">
             ${DESK_FILTERS.map((item) => `<button type="button" data-desk-filter="${item.id}">${item.label}</button>`).join("")}
           </div>
           <div id="desktop-stage" class="view-${state.iconView}"></div>
@@ -2101,13 +2405,6 @@ function buildLayout() {
     </div>
     <div id="fab-bar">${fabBarHtml()}</div>
   `;
-
-  const rules = document.getElementById("rules_list");
-  if (rules) {
-    rules.innerHTML = RULES.map(
-      ([name, exts]) => `<div class="rule-line"><span>${escapeHtml(name)}</span><span>${escapeHtml(exts)}</span></div>`
-    ).join("");
-  }
 
   Object.keys(state.layout).forEach((id) => {
     if (id === "status") return;
@@ -2182,10 +2479,10 @@ function buildLayout() {
       onClose: () => closeDesktopCard()
     }));
     applyCardBg(desk, state.desktopStage?.bg);
+    bindDeskTabs(desk);
     bindDeskFilters(desk);
-    bindFileDrop(desk, () => state.bootstrap.desktop, async () => {
-      await loadDesktopListing();
-      arrangeDesktop();
+    bindFileDrop(desk, () => activeDesktopDropDir(), async () => {
+      await refreshActiveDesktopView();
     });
     makeInteractive(desk, {
       minW: 280,
@@ -2204,8 +2501,6 @@ function buildLayout() {
       onEnd: () => persistLayout()
     });
   }
-
-  bindShortcutsPanel();
 
   document.getElementById("add-fab")?.addEventListener("click", () => openAddPicker());
   if (state.primary) {
@@ -2227,9 +2522,20 @@ function buildLayout() {
   window.edexEffects?.start?.();
   applyRainMetrics();
   bindCalendar();
-  fillShortcutsStage();
   fillDrivesStage();
   bindFileSearch();
+  bindPluginPanels();
+}
+
+/** Wire optional plugin modules after their card DOM exists. */
+function bindPluginPanels() {
+  if (state.layout.cursorChat) window.cursorChatPanel?.bind?.(state);
+  else window.cursorChatPanel?.unbind?.(state);
+  if (state.layout.cockpit) window.cockpitPanel?.bind?.(state);
+  if (state.layout.cassette) window.cassettePanel?.bind?.(state);
+  if (state.layout.ddj) window.ddjPanel?.bind?.(state);
+  if (state.layout.cpuRail) window.cpuRailPanel?.bind?.(state);
+  if (state.layout.calculator) window.calculatorPanel?.bind?.(state);
 }
 
 function updateDesktopViewToggle() {
@@ -2244,14 +2550,6 @@ function toggleIconView(kind, pathId) {
     fillPathStage(card);
     persistLayout();
     toast(card.iconView === "list" ? "已切換為列表" : "已切換為網格");
-    return;
-  }
-  if (kind === "shortcuts") {
-    if (!state.layout.shortcuts) return;
-    state.layout.shortcuts.iconView = state.layout.shortcuts.iconView === "list" ? "grid" : "list";
-    fillShortcutsStage();
-    persistLayout();
-    toast(state.layout.shortcuts.iconView === "list" ? "已切換為列表" : "已切換為網格");
     return;
   }
   state.iconView = state.iconView === "list" ? "grid" : "list";
@@ -2499,16 +2797,16 @@ async function addPathCardAt(folderPath) {
     return;
   }
   const id = `p${Date.now()}`;
-  const n = state.pathCards.length % 4;
-  state.pathCards.push(snapBoxVwVh({
+  const placed = findEmptyBox({
     id,
     path: picked,
-    x: 18 + n * 2,
-    y: 16 + n * 2,
+    x: 18,
+    y: 16,
     w: 46,
     h: 52,
     iconView: "grid"
-  }));
+  }, { pathId: id });
+  state.pathCards.push(placed);
   state.activePathId = id;
   persistLayout();
   renderPathCards();
@@ -2521,11 +2819,21 @@ function desktopItems() {
   return listingItems(state.desktopListing);
 }
 
-async function loadDesktopListing() {
+async function loadDesktopListing(options = {}) {
+  const opts = {
+    decorate: "fast",
+    includeShell: false,
+    ...options
+  };
   try {
-    state.desktopListing = await window.edex.listDesktopFiles();
+    // Fast FS listing + Electron icons (cached). Avoids PowerShell on every refresh.
+    state.desktopListing = await window.edex.listDesktopShortcuts(opts);
   } catch {
-    state.desktopListing = { items: [], total: 0 };
+    try {
+      state.desktopListing = await window.edex.listDesktopFiles();
+    } catch {
+      state.desktopListing = { items: [], total: 0 };
+    }
   }
 }
 
@@ -2779,37 +3087,6 @@ async function rebuildFileSearch() {
     refreshSearchStatus();
   } catch (err) {
     toast(err.message || "重建失敗");
-  }
-}
-
-function bindShortcutsPanel() {
-  const el = document.getElementById("card_shortcuts");
-  if (!el) return;
-  bindFileDrop(el, () => state.bootstrap.desktop, async () => {
-    await loadDesktopListing();
-    arrangeDesktop();
-    await fillShortcutsStage();
-  });
-}
-
-async function fillShortcutsStage() {
-  const stage = document.getElementById("shortcuts-stage");
-  if (!stage) return;
-  const view = state.layout.shortcuts?.iconView === "list" ? "list" : "grid";
-  try {
-    const listing = await window.edex.listDesktopShortcuts();
-    fillIconStage(stage, listingItems(listing), {
-      draggable: false,
-      view,
-      destDir: state.bootstrap?.desktop || "",
-      onRefresh: () => fillShortcutsStage()
-    });
-  } catch (err) {
-    stage.innerHTML = `<p class="path-empty">${escapeHtml(err.message || "無法讀取桌面捷徑")}</p>`;
-    bindFileStage(stage, {
-      destDir: state.bootstrap?.desktop || "",
-      onRefresh: () => fillShortcutsStage()
-    });
   }
 }
 
@@ -3067,10 +3344,246 @@ function tagDotsHtml(tags) {
   return dots ? `<span class="tag-dots">${dots}</span>` : "";
 }
 
+function canNativeFileItem(item) {
+  if (!item?.path || isVirtualPath(item.path)) return false;
+  if (item.kind === "drive" || item.kind === "thispc" || item.kind === "recycle") return false;
+  if (isDriveRoot(item.path)) return false;
+  return true;
+}
+
+/** Nearest stage root so grouped 系統桌面 + 桌面捷徑 share selection / drag paths. */
+function fileStageRoot(nodeOrStage) {
+  if (!nodeOrStage) return null;
+  return nodeOrStage.closest?.(
+    "#desktop-stage, #shortcuts-stage, .path-stage, .fs-results, .drives-stage"
+  ) || nodeOrStage;
+}
+
+function stageFileNodes(stage) {
+  const root = fileStageRoot(stage) || stage;
+  return [...root.querySelectorAll(".desk-icon[data-path], .fs-row[data-path]")];
+}
+
+function clearStageSelection(stage) {
+  stageFileNodes(stage).forEach((el) => el.classList.remove("selected"));
+}
+
+function selectedPathsInStage(stage) {
+  return stageFileNodes(stage)
+    .filter((el) => el.classList.contains("selected"))
+    .map((el) => el.dataset.path)
+    .filter(Boolean);
+}
+
+function selectFileNode(stage, node, event) {
+  const root = fileStageRoot(stage) || stage;
+  if (!node || !root.contains(node)) return;
+  const item = itemFromIcon(node);
+  if (!canNativeFileItem(item) && !node.classList.contains("fs-row")) {
+    if (!(event.ctrlKey || event.metaKey || event.shiftKey)) clearStageSelection(root);
+    return;
+  }
+  const nodes = stageFileNodes(root);
+  if (event.shiftKey) {
+    const anchor = root._fileAnchor && nodes.includes(root._fileAnchor) ? root._fileAnchor : node;
+    const a = nodes.indexOf(anchor);
+    const b = nodes.indexOf(node);
+    if (a >= 0 && b >= 0) {
+      const lo = Math.min(a, b);
+      const hi = Math.max(a, b);
+      if (!(event.ctrlKey || event.metaKey)) clearStageSelection(root);
+      for (let i = lo; i <= hi; i += 1) nodes[i].classList.add("selected");
+      root._fileAnchor = node;
+      return;
+    }
+  }
+  if (event.ctrlKey || event.metaKey) node.classList.toggle("selected");
+  else {
+    clearStageSelection(root);
+    node.classList.add("selected");
+  }
+  root._fileAnchor = node;
+}
+
+function ensureFileDragGhost() {
+  let ghost = document.getElementById("file-drag-ghost");
+  if (ghost) return ghost;
+  ghost = document.createElement("div");
+  ghost.id = "file-drag-ghost";
+  ghost.hidden = true;
+  document.body.appendChild(ghost);
+  return ghost;
+}
+
+function showFileDragGhost(node, x, y) {
+  const ghost = ensureFileDragGhost();
+  const face = node.querySelector(".desk-icon-face")?.innerHTML
+    || node.querySelector("img, svg")?.outerHTML
+    || "";
+  const label = node.querySelector("h3")?.textContent || "";
+  ghost.innerHTML = `${face}<span>${escapeHtml(label)}</span>`;
+  ghost.hidden = false;
+  ghost.style.left = `${x + 12}px`;
+  ghost.style.top = `${y + 12}px`;
+  document.body.classList.add("is-file-dragging");
+}
+
+function moveFileDragGhost(x, y) {
+  const ghost = document.getElementById("file-drag-ghost");
+  if (!ghost || ghost.hidden) return;
+  ghost.style.left = `${x + 12}px`;
+  ghost.style.top = `${y + 12}px`;
+}
+
+function hideFileDragGhost() {
+  const ghost = document.getElementById("file-drag-ghost");
+  if (ghost) ghost.hidden = true;
+  document.body.classList.remove("is-file-dragging");
+}
+
+/**
+ * Native OS file drag — OLE-first.
+ * Critical: do NOT arm / capture / prepare on pointerdown — that breaks dblclick
+ * (open in Explorer + Ctrl+dblclick desktop tabs).
+ */
+function bindNativeFileDrag(node, item, stage) {
+  if (!canNativeFileItem(item)) return;
+  const dragStage = fileStageRoot(stage) || stage;
+  node.setAttribute("draggable", "false");
+  node.style.webkitUserDrag = "none";
+  node.style.cursor = "pointer";
+  node.querySelectorAll("img, svg, a, .desk-icon-face, h3, .meta, .tag-dots").forEach((el) => {
+    el.setAttribute("draggable", "false");
+    el.style.webkitUserDrag = "none";
+    el.style.pointerEvents = "none";
+  });
+
+  // Prefer double-click open / Ctrl+tab. OS drag only after a deliberate gesture:
+  // Alt+drag, or press-and-hold >350ms then move past threshold.
+  const THRESHOLD = 20;
+  const HOLD_BEFORE_DRAG_MS = 350;
+  let pressing = false;
+  let armed = false;
+  let started = false;
+  let startX = 0;
+  let startY = 0;
+  let downAt = 0;
+  let altDrag = false;
+
+  const collectPaths = () => {
+    const paths = selectedPathsInStage(dragStage).filter((p) => canNativeFileItem({ path: p }));
+    return paths.length ? paths : [item.path].filter(Boolean);
+  };
+
+  const disarm = () => {
+    pressing = false;
+    armed = false;
+    altDrag = false;
+    document.body.classList.remove("is-file-drag-armed");
+    node.classList.remove("dragging");
+    hideFileDragGhost();
+    window.edex?.setFileDragArmed?.(false);
+    window.edex?.cancelFileDragPrepare?.();
+    window.removeEventListener("pointermove", onMove, true);
+    window.removeEventListener("pointerup", onUp, true);
+    window.removeEventListener("pointercancel", onUp, true);
+  };
+
+  const armForDrag = () => {
+    if (armed || started) return;
+    armed = true;
+    document.body.classList.add("is-file-drag-armed");
+    window.edex?.setFileDragArmed?.(true);
+    window.edex?.prepareFileDrag?.()?.catch?.(() => {});
+  };
+
+  const beginOleDrag = async () => {
+    if (!pressing || started) return;
+    const list = collectPaths();
+    if (!list.length) {
+      toast("無法開始拖放（請確認檔案仍存在）");
+      disarm();
+      return;
+    }
+    started = true;
+    armForDrag();
+    document.body.classList.add("is-file-dragging");
+    node.classList.add("dragging");
+    showFileDragGhost(node, startX, startY);
+    try {
+      const result = await window.edex?.startFileDrag?.(list);
+      if (!result?.ok) toast(result?.message || "無法開始拖放");
+    } catch (err) {
+      toast(err?.message || "無法開始拖放");
+    } finally {
+      started = false;
+      disarm();
+      document.body.classList.remove("is-file-dragging");
+    }
+  };
+
+  const onMove = (event) => {
+    if (!pressing || started) return;
+    const dx = event.clientX - startX;
+    const dy = event.clientY - startY;
+    const dist2 = dx * dx + dy * dy;
+    if (dist2 < THRESHOLD * THRESHOLD) return;
+    const held = Date.now() - downAt;
+    if (!altDrag && held < HOLD_BEFORE_DRAG_MS) return;
+    if (!node.classList.contains("selected")) {
+      clearStageSelection(dragStage);
+      node.classList.add("selected");
+      dragStage._fileAnchor = node;
+    }
+    showFileDragGhost(node, event.clientX, event.clientY);
+    moveFileDragGhost(event.clientX, event.clientY);
+    beginOleDrag();
+  };
+
+  const onUp = () => {
+    if (!started) disarm();
+  };
+
+  node.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    if (event.target?.closest?.("input, textarea, .icon-rename")) return;
+    if (event.detail > 1) {
+      disarm();
+      return;
+    }
+    // Ctrl/Cmd = select / Ctrl+dblclick tabs — never start OLE.
+    if (event.ctrlKey || event.metaKey) return;
+    pressing = true;
+    armed = false;
+    started = false;
+    altDrag = Boolean(event.altKey);
+    startX = event.clientX;
+    startY = event.clientY;
+    downAt = Date.now();
+    window.addEventListener("pointermove", onMove, true);
+    window.addEventListener("pointerup", onUp, true);
+    window.addEventListener("pointercancel", onUp, true);
+  });
+}
+
 function bindFileStage(stage, opts) {
   fileStageCtx.set(stage, opts || {});
+  if (stage.tabIndex < 0) stage.tabIndex = 0;
+  stage.style.cursor = "default";
   if (stage.dataset.fileMenuBound) return;
   stage.dataset.fileMenuBound = "1";
+  stage.addEventListener("pointerdown", (event) => {
+    const node = event.target.closest(".desk-icon, .fs-row");
+    if (!node || !stage.contains(node)) {
+      if (!event.target.closest("input, textarea, button, a, .icon-rename")) {
+        clearStageSelection(stage);
+      }
+      return;
+    }
+    if (event.button !== 0) return;
+    if (event.target.closest("input, textarea, .icon-rename")) return;
+    selectFileNode(stage, node, event);
+  });
   stage.addEventListener("contextmenu", (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -3079,6 +3592,11 @@ function bindFileStage(stage, opts) {
     const item = node
       ? (ctx.itemFromNode?.(node) || itemFromIcon(node))
       : null;
+    if (node && item && canNativeFileItem(item) && !node.classList.contains("selected")) {
+      clearStageSelection(stage);
+      node.classList.add("selected");
+      stage._fileAnchor = node;
+    }
     const menuItems = fileMenuItems(stage, item, ctx);
     if (!menuItems.length) return;
     openCardMenu(node || stage, menuItems, { x: event.clientX, y: event.clientY });
@@ -3093,6 +3611,8 @@ function itemFromIcon(node) {
     path: node.dataset.path,
     name: node.dataset.name || node.querySelector("h3")?.textContent || "",
     isDirectory: node.dataset.dir === "1",
+    targetPath: node.dataset.targetPath || "",
+    targetIsDirectory: node.dataset.targetDir === "1",
     kind: node.dataset.kind || "",
     tags
   };
@@ -3103,22 +3623,50 @@ function fileMenuItems(stage, item, ctx) {
     ? ""
     : (ctx.destDir || (item && !isVirtualPath(item.path) ? (item.isDirectory ? item.path : parentDir(item.path)) : ""));
   const items = [];
-  if (item?.isDirectory && !isVirtualPath(item.path)) {
-    items.push({
-      label: "加入為路徑容器",
-      action: () => addPathCardAt(item.path)
-    });
+  const isDesktopStage = Boolean(ctx.desktopActions) || stage?.id === "desktop-stage";
+  if (isDesktopStage) {
+    items.push(
+      {
+        label: "刷新內容",
+        action: async () => {
+          try {
+            await refreshActiveDesktopView();
+            toast("已刷新內容");
+          } catch (err) {
+            toast(err.message || "無法刷新");
+          }
+        }
+      },
+      {
+        label: "自動整理",
+        action: () => runOrganize()
+      },
+      { sep: true }
+    );
+  }
+  const folderTab = resolveFolderForTab(item);
+  if (folderTab) {
+    items.push(
+      {
+        label: "在系統桌面標籤頁開啟",
+        action: () => openFolderInDesktopTab(folderTab)
+      },
+      {
+        label: "加入為路徑容器",
+        action: () => addPathCardAt(folderTab.path)
+      }
+    );
   }
   if (destDir && !isVirtualPath(destDir)) {
     items.push({
       label: "新建資料夾",
       action: async () => {
+        const name = await promptFolderName("未命名資料夾");
+        if (name == null) return;
         try {
-          const created = await window.edex.createFolder(destDir);
+          const created = await window.edex.createFolder(destDir, name);
           toast(`已建立 ${created.name}`);
           await ctx.onRefresh?.();
-          const node = [...stage.querySelectorAll(".desk-icon")].find((el) => el.dataset.path === created.path);
-          if (node) startRename(node, created, ctx.onRefresh);
         } catch (err) {
           toast(err.message || "無法建立資料夾");
         }
@@ -3177,13 +3725,72 @@ function fileMenuItems(stage, item, ctx) {
   return items;
 }
 
+/** Modal text prompt — resolves with trimmed string, or null if cancelled. */
+function promptTextInput({ title = "輸入", hint = "", value = "", okLabel = "確定", cancelLabel = "取消" } = {}) {
+  return new Promise((resolve) => {
+    document.getElementById("textInputPrompt")?.closest(".modal_popup")?.remove();
+    const modal = document.createElement("div");
+    modal.className = "modal_popup info";
+    modal.innerHTML = `
+      <h1>${escapeHtml(title)}</h1>
+      ${hint ? `<h2>${escapeHtml(hint)}</h2>` : ""}
+      <table id="textInputPrompt">
+        <tr><th>名稱</th><th><input id="text_input_field" type="text" spellcheck="false" /></th></tr>
+      </table>
+      <div class="settings-footer">
+        <button type="button" id="text-input-cancel">${escapeHtml(cancelLabel)}</button>
+        <button type="button" id="text-input-ok">${escapeHtml(okLabel)}</button>
+      </div>`;
+    document.body.appendChild(modal);
+    placeCentered(modal, { width: Math.min(420, window.innerWidth * 0.42), topRatio: 0.22 });
+    const input = modal.querySelector("#text_input_field");
+    if (input) {
+      input.value = value || "";
+      input.focus();
+      input.select();
+    }
+    const finish = (result) => {
+      modal.remove();
+      resolve(result);
+    };
+    modal.querySelector("#text-input-cancel").onclick = () => finish(null);
+    modal.querySelector("#text-input-ok").onclick = () => {
+      const next = String(input?.value || "").trim();
+      if (!next) {
+        toast("請輸入名稱");
+        input?.focus();
+        return;
+      }
+      finish(next);
+    };
+    input?.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") modal.querySelector("#text-input-ok")?.click();
+      if (event.key === "Escape") finish(null);
+    });
+  });
+}
+
+function promptFolderName(defaultName = "未命名資料夾") {
+  return promptTextInput({
+    title: "新建資料夾",
+    hint: "請輸入資料夾名稱",
+    value: defaultName,
+    okLabel: "建立"
+  });
+}
+
 function promptRename(item, onRefresh) {
-  const next = window.prompt("重新命名", item.name || "");
-  if (next == null || next.trim() === item.name) return;
-  window.edex.renameItem(item.path, next.trim()).then(async () => {
-    toast("已重新命名");
-    await onRefresh?.();
-  }).catch((err) => toast(err.message || "無法重新命名"));
+  promptTextInput({
+    title: "重新命名",
+    value: item.name || "",
+    okLabel: "確定"
+  }).then((next) => {
+    if (next == null || next === item.name) return;
+    window.edex.renameItem(item.path, next).then(async () => {
+      toast("已重新命名");
+      await onRefresh?.();
+    }).catch((err) => toast(err.message || "無法重新命名"));
+  });
 }
 
 function startRename(node, item, onRefresh) {
@@ -3234,6 +3841,7 @@ function startRename(node, item, onRefresh) {
 function fillIconStage(stage, items, opts = {}) {
   const view = opts.view === "list" ? "list" : "grid";
   const listMode = view === "list";
+  const dragRoot = fileStageRoot(stage) || stage;
   stage.classList.toggle("view-list", listMode);
   stage.classList.toggle("view-grid", !listMode);
   stage.innerHTML = "";
@@ -3246,15 +3854,39 @@ function fillIconStage(stage, items, opts = {}) {
     node.dataset.name = item.name || "";
     node.dataset.dir = item.isDirectory ? "1" : "0";
     node.dataset.kind = item.kind || "";
+    if (item.targetPath) node.dataset.targetPath = item.targetPath;
+    if (item.targetIsDirectory) node.dataset.targetDir = "1";
     node.dataset.tags = JSON.stringify(item.tags || []);
+    try {
+      node.dataset.itemJson = JSON.stringify({
+        path: item.path,
+        name: item.name,
+        displayName: item.displayName,
+        isDirectory: Boolean(item.isDirectory),
+        targetPath: item.targetPath || "",
+        targetIsDirectory: Boolean(item.targetIsDirectory),
+        kind: item.kind || "",
+        category: item.category || "",
+        tags: item.tags || []
+      });
+    } catch {
+      // ignore
+    }
     const label = itemLabel(item);
     node.innerHTML = `<span class="desk-icon-face">${iconSvg(item.icon)}${tagDotsHtml(item.tags)}</span><h3 title="${escapeHtml(item.name || label)}">${escapeHtml(label)}</h3><span class="meta">${escapeHtml(item.sizeLabel || "")}</span>`;
-    node.addEventListener("dblclick", () => window.edex.openPath(item.path));
+    node.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      holdOverlayHits(1500);
+    }, true);
+    // OS file drag — only after a real drag; do not steal double-clicks.
+    bindNativeFileDrag(node, item, dragRoot);
     if (opts.draggable && !listMode) bindIconDrag(node, item, gap);
     stage.appendChild(node);
   });
   bindFileStage(stage, {
     destDir: opts.destDir || "",
+    allowCreate: opts.allowCreate,
+    desktopActions: opts.desktopActions,
     onRefresh: opts.onRefresh
   });
 }
@@ -3319,12 +3951,217 @@ function matchesDeskFilter(item, filter) {
   return bucket === filter;
 }
 
+function activeDesktopFolderTab() {
+  if (!state.desktopTabId || state.desktopTabId === "classify") return null;
+  return (state.desktopFolderTabs || []).find((tab) => tab.id === state.desktopTabId) || null;
+}
+
+function activeDesktopDropDir() {
+  const tab = activeDesktopFolderTab();
+  if (tab?.path) return tab.path;
+  return state.bootstrap?.desktop || "";
+}
+
+function folderTabTitle(pathValue, fallback = "") {
+  const base = String(pathValue || "").split(/[/\\]/).filter(Boolean).pop();
+  return base || fallback || "資料夾";
+}
+
+function ensureDesktopEnabled() {
+  if (!state.primary) return false;
+  if (state.desktopEnabled !== false && document.getElementById("card_desktop")) return true;
+  state.desktopEnabled = true;
+  if (!state.desktopStage) state.desktopStage = findEmptyBox(defaultDesktop(), { desktop: true });
+  persistLayout();
+  // rebuildWorkspace keeps state.layout; never assign defaultWidgets() here.
+  rebuildWorkspace();
+  return Boolean(document.getElementById("card_desktop"));
+}
+
+/** Remove panel id(s) from all persisted display layouts (closed = gone forever). */
+async function purgePanelFromSavedLayouts(panelIds) {
+  const ids = (Array.isArray(panelIds) ? panelIds : [panelIds])
+    .map((id) => String(id || "").trim())
+    .filter(Boolean);
+  if (!ids.length) return;
+  const layouts = state.settings?.displayLayouts;
+  if (!layouts || typeof layouts !== "object") return;
+  const next = {};
+  let changed = false;
+  for (const [displayId, entry] of Object.entries(layouts)) {
+    if (!entry?.layout) {
+      next[displayId] = entry;
+      continue;
+    }
+    const layout = { ...entry.layout };
+    let local = false;
+    for (const id of ids) {
+      if (layout[id]) {
+        delete layout[id];
+        local = true;
+      }
+    }
+    if (local) {
+      next[displayId] = { ...entry, layout };
+      changed = true;
+    } else {
+      next[displayId] = entry;
+    }
+  }
+  if (!changed) return;
+  try {
+    const result = await window.edex.saveSettings({ displayLayouts: next });
+    if (result?.settings) state.settings = result.settings;
+  } catch {
+    // ignore
+  }
+}
+
+/** Resolve a real folder path for desktop tab open (folder or .lnk → folder). */
+function resolveFolderForTab(item) {
+  if (!item) return null;
+  const pathValue = String(item.path || "").trim();
+  const target = String(item.targetPath || "").trim();
+  const name = itemLabel(item) || item.name || item.displayName || "";
+  if (item.isDirectory && pathValue && !isVirtualPath(pathValue)) {
+    return { path: pathValue, name: name || folderTabTitle(pathValue), isDirectory: true };
+  }
+  if ((item.targetIsDirectory || item.kind === "shortcut") && target && !isVirtualPath(target)) {
+    // Folder shortcuts often only set targetPath; treat as folder when target has no file ext
+    // or explicit targetIsDirectory flag.
+    const base = target.split(/[/\\]/).pop() || "";
+    const looksFile = /\.[a-z0-9]{1,8}$/i.test(base);
+    if (item.targetIsDirectory || !looksFile) {
+      return { path: target, name: name || folderTabTitle(target), isDirectory: true };
+    }
+  }
+  return null;
+}
+
+function renderDeskTabs() {
+  const bar = document.getElementById("desk-tab-bar");
+  if (!bar) return;
+  const active = state.desktopTabId || "classify";
+  const folderTabs = state.desktopFolderTabs || [];
+  bar.innerHTML = [
+    `<button type="button" class="desk-tab${active === "classify" ? " on" : ""}" data-desk-tab="classify"><span class="desk-tab-label">桌面分類</span></button>`,
+    ...folderTabs.map((tab) => `
+      <button type="button" class="desk-tab${active === tab.id ? " on" : ""}" data-desk-tab="${escapeHtml(tab.id)}" title="${escapeHtml(tab.path || "")}">
+        <span class="desk-tab-label">${escapeHtml(tab.name || folderTabTitle(tab.path))}</span>
+        <span class="desk-tab-close" data-desk-tab-close="${escapeHtml(tab.id)}" title="關閉">×</span>
+      </button>
+    `)
+  ].join("");
+}
+
+function bindDeskTabs(desk) {
+  const bar = desk.querySelector("#desk-tab-bar") || document.getElementById("desk-tab-bar");
+  if (!bar) return;
+  if (bar.dataset.bound === "1") {
+    renderDeskTabs();
+    return;
+  }
+  bar.dataset.bound = "1";
+  bar.addEventListener("click", async (event) => {
+    const closeBtn = event.target.closest("[data-desk-tab-close]");
+    if (closeBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      await closeDesktopFolderTab(closeBtn.dataset.deskTabClose);
+      return;
+    }
+    const tabBtn = event.target.closest("[data-desk-tab]");
+    if (!tabBtn) return;
+    event.preventDefault();
+    event.stopPropagation();
+    state.desktopTabId = tabBtn.dataset.deskTab || "classify";
+    persistLayout();
+    await arrangeDesktop();
+  });
+  renderDeskTabs();
+}
+
+async function openFolderInDesktopTab(item) {
+  const folder = resolveFolderForTab(item) || (
+    item?.isDirectory && item?.path && !isVirtualPath(item.path)
+      ? { path: item.path, name: itemLabel(item) || item.name, isDirectory: true }
+      : null
+  );
+  const folderPath = String(folder?.path || "").trim();
+  if (!folderPath || isVirtualPath(folderPath)) {
+    toast("無法在桌面容器開啟此資料夾");
+    return;
+  }
+  if (!ensureDesktopEnabled()) {
+    toast("系統桌面容器未啟用");
+    return;
+  }
+  const existing = (state.desktopFolderTabs || []).find(
+    (tab) => String(tab.path || "").toLowerCase() === folderPath.toLowerCase()
+  );
+  if (existing) {
+    state.desktopTabId = existing.id;
+  } else {
+    const id = `ft${Date.now().toString(36)}`;
+    const tab = {
+      id,
+      path: folderPath,
+      name: folder.name || folderTabTitle(folderPath, item?.name),
+      listing: null
+    };
+    state.desktopFolderTabs = [...(state.desktopFolderTabs || []), tab];
+    state.desktopTabId = id;
+  }
+  await persistLayout();
+  const desk = document.getElementById("card_desktop");
+  if (desk) bindDeskTabs(desk);
+  renderDeskTabs();
+  await arrangeDesktop();
+  toast(`已在系統桌面開啟「${folderTabTitle(folderPath, folder.name)}」`);
+}
+
+async function closeDesktopFolderTab(tabId) {
+  const id = String(tabId || "");
+  if (!id || id === "classify") return;
+  state.desktopFolderTabs = (state.desktopFolderTabs || []).filter((tab) => tab.id !== id);
+  if (state.desktopTabId === id) state.desktopTabId = "classify";
+  persistLayout();
+  renderDeskTabs();
+  await arrangeDesktop();
+}
+
+async function refreshActiveDesktopView() {
+  const tab = activeDesktopFolderTab();
+  if (tab) {
+    tab.listing = null;
+    await arrangeDesktop();
+    return;
+  }
+  await loadDesktopListing({ decorate: "fast", includeShell: false });
+  arrangeDesktop();
+}
+
+async function loadFolderTabListing(tab) {
+  if (!tab?.path) return { items: [], total: 0 };
+  try {
+    const listing = await window.edex.listFolder(tab.path, { systemIcons: "fast" });
+    tab.listing = listing;
+    tab.listingError = "";
+    return listing;
+  } catch (err) {
+    tab.listing = { items: [], total: 0 };
+    tab.listingError = err.message || "無法讀取資料夾";
+    return tab.listing;
+  }
+}
+
 function bindDeskFilters(desk) {
   desk.querySelectorAll("[data-desk-filter]").forEach((btn) => {
     btn.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
       state.desktopFilter = btn.dataset.deskFilter || "all";
+      state.desktopTabId = "classify";
       persistLayout();
       arrangeDesktop();
     });
@@ -3339,22 +4176,71 @@ function syncDeskFilters() {
   });
 }
 
-function arrangeDesktop() {
+function syncDesktopChrome() {
+  const filterBar = document.getElementById("desk-filter-bar");
+  const pathText = document.getElementById("desktop-path-text");
+  const folderTab = activeDesktopFolderTab();
+  const onClassify = !folderTab;
+  if (filterBar) filterBar.hidden = !onClassify;
+  if (pathText) {
+    const shown = folderTab?.path || state.bootstrap?.desktop || "";
+    pathText.textContent = shown;
+    pathText.title = shown;
+  }
+  renderDeskTabs();
+  syncDeskFilters();
+}
+
+async function arrangeDesktop() {
   const stage = document.getElementById("desktop-stage");
   if (!stage) return;
+  syncDesktopChrome();
+
+  const folderTab = activeDesktopFolderTab();
+  const view = state.iconView === "list" ? "list" : "grid";
+
+  if (folderTab) {
+    stage.classList.remove("view-grouped");
+    if (!folderTab.listing) {
+      stage.innerHTML = `<p class="path-empty">讀取中…</p>`;
+      await loadFolderTabListing(folderTab);
+    }
+    const destDir = folderTab.path || "";
+    const fileOpts = {
+      destDir,
+      desktopActions: true,
+      onRefresh: async () => {
+        folderTab.listing = null;
+        await arrangeDesktop();
+      }
+    };
+    if (folderTab.listingError) {
+      stage.innerHTML = `<p class="path-empty">${escapeHtml(folderTab.listingError)}</p>`;
+      bindFileStage(stage, fileOpts);
+      return;
+    }
+    const items = listingItems(folderTab.listing);
+    if (!items.length) {
+      stage.innerHTML = `<p class="path-empty">此資料夾沒有可顯示的項目</p>`;
+      bindFileStage(stage, fileOpts);
+      return;
+    }
+    fillIconStage(stage, items, { draggable: false, view, ...fileOpts });
+    return;
+  }
+
   const destDir = state.bootstrap?.desktop || "";
   const all = desktopItems();
   const filter = state.desktopFilter || "all";
-  const view = state.iconView === "list" ? "list" : "grid";
   const fileOpts = {
     destDir,
+    desktopActions: true,
     onRefresh: async () => {
       await loadDesktopListing();
       arrangeDesktop();
     }
   };
   const buckets = deskFilterBuckets();
-  syncDeskFilters();
   if (state.desktopGrouped && filter === "all") {
     stage.classList.remove("view-list", "view-grid");
     stage.classList.add("view-grouped");
@@ -3389,30 +4275,7 @@ function setText(id, text) {
 }
 
 function renderStats() {
-  const scan = state.scan;
-  if (!scan) return;
-  setText("fill_label", scan.totalSizeLabel);
-  const order = ["documents", "images", "videos", "audio", "archives", "shortcuts", "apps", "other", "folders"];
-  const labels = {
-    documents: "文件", images: "圖片", videos: "影片", audio: "音樂",
-    archives: "壓縮", shortcuts: "捷徑", apps: "應用", other: "其他", folders: "資料夾"
-  };
-  const bars = document.getElementById("category_bars");
-  if (bars) {
-    const max = Math.max(1, ...order.map((id) => scan.counts[id] || 0));
-    bars.innerHTML = order.map((id) => {
-      const n = scan.counts[id] || 0;
-      return `<div class="bar-row"><span>${labels[id]}</span><progress max="${max}" value="${n}"></progress><span>${n}</span></div>`;
-    }).join("");
-  }
-  const map = document.getElementById("fill_pointmap");
-  if (map) {
-    const usedRatio = Math.min(1, scan.total / 80);
-    map.innerHTML = Array.from({ length: 150 }, (_, i) => {
-      const cls = i / 150 < usedRatio ? "active" : "free";
-      return `<div class="mod_ramwatcher_point ${cls}"></div>`;
-    }).join("");
-  }
+  // Category / storage panels removed — keep no-op for existing call sites.
 }
 
 function log(text) {
@@ -3573,13 +4436,21 @@ function openSettings() {
         <td>遷移時一併把資料夾收到「資料夾」</td>
         <td><input id="set-dirs" type="checkbox" ${state.includeFolders ? "checked" : ""}></td>
       </tr>
+      <tr>
+        <td>桌面佈局</td>
+        <td>保存本顯示器全部容器：插件開關與位置、系統桌面、路徑卡、桌面標籤。關閉的插件不會在下次啟動復原。</td>
+        <td>
+          <button type="button" id="set-save-layout">保存佈局</button>
+        </td>
+      </tr>
     </table>
 
     <div class="settings-footer">
       <button type="button" id="set-reset">重設容器位置</button>
       <button type="button" id="set-quit">結束程式</button>
       <button type="button" id="set-cancel">關閉</button>
-      <button type="button" id="set-save">套用設定</button>
+      <button type="button" id="set-save-layout-footer">保存佈局</button>
+      <button type="button" id="set-save">套用設定並保存佈局</button>
     </div>
   `;
   document.body.appendChild(modal);
@@ -3652,11 +4523,26 @@ function openSettings() {
   modal.querySelector("#set-quit").onclick = () => {
     if (window.confirm("確定退出桌面整理？")) window.edex.quitApp();
   };
+  const saveDesktopLayout = async () => {
+    snapAllLayoutToGrid();
+    try {
+      await persistLayout();
+      toast("本顯示器桌面佈局已保存（含全部插件）");
+      return true;
+    } catch (err) {
+      toast(err?.message || "佈局保存失敗");
+      return false;
+    }
+  };
+  modal.querySelector("#set-save-layout").onclick = () => saveDesktopLayout();
+  modal.querySelector("#set-save-layout-footer").onclick = () => saveDesktopLayout();
   modal.querySelector("#set-reset").onclick = () => {
     state.layout = defaultWidgets();
     state.desktopStage = defaultDesktop();
     state.desktopEnabled = true;
     state.pathCards = [];
+    state.desktopFolderTabs = [];
+    state.desktopTabId = "classify";
     snapAllLayoutToGrid();
     persistLayout();
     location.reload();
@@ -3721,9 +4607,9 @@ function openSettings() {
     applyClockMetrics();
     applyRainMetrics();
     snapAllLayoutToGrid();
-    persistLayout();
+    await persistLayout();
     closeSettings();
-    toast("設定已套用");
+    toast("設定與桌面佈局已保存");
     rebuildWorkspace();
   };
 }
@@ -3738,25 +4624,32 @@ function rebuildWorkspace() {
   renderPathCards();
   if (state.scan) renderStats();
   loadDesktopListing().then(() => arrangeDesktop());
-  fillShortcutsStage();
   fillDrivesStage();
+  bindPluginPanels();
+  if (keepAddPicker) {
+    queueMicrotask(() => openAddPicker());
+  }
 }
 
 function receiveWidget(widget) {
   if (!widget?.type) return;
 
   if (widget.type === "panel" && widget.id && widget.id !== "status" && PANEL_META[widget.id]) {
-    state.layout[widget.id] = snapBoxVwVh({
+    if (state.layout[widget.id]) {
+      toast("此顯示器已有該插件");
+      return;
+    }
+    state.layout[widget.id] = findEmptyBox({
       ...(widget.data?.box || {}),
-      x: widget.x ?? 2,
-      y: widget.y ?? 4,
-      w: widget.w ?? 16,
-      h: widget.h ?? 14,
+      x: widget.x ?? PANEL_META[widget.id].box?.x ?? 2,
+      y: widget.y ?? PANEL_META[widget.id].box?.y ?? 4,
+      w: widget.w ?? PANEL_META[widget.id].box?.w ?? 16,
+      h: widget.h ?? PANEL_META[widget.id].box?.h ?? 14,
       gx: widget.gx,
       gy: widget.gy,
       gw: widget.gw,
       gh: widget.gh
-    });
+    }, { panelId: widget.id });
     persistLayout();
     rebuildWorkspace();
     toast(`已接收面板「${PANEL_META[widget.id].title}」`);
@@ -3766,7 +4659,7 @@ function receiveWidget(widget) {
   if (widget.type === "path") {
     const id = widget.id || `p${Date.now()}`;
     if (!state.pathCards.some((c) => c.id === id)) {
-      state.pathCards.push(snapBoxVwVh({
+      state.pathCards.push(findEmptyBox({
         id,
         path: widget.data?.path || state.bootstrap.root,
         x: widget.x ?? 20,
@@ -3778,10 +4671,10 @@ function receiveWidget(widget) {
         gw: widget.gw,
         gh: widget.gh,
         iconView: widget.data?.iconView === "list" ? "list" : "grid"
-      }));
+      }, { pathId: id }));
     } else {
       const card = state.pathCards.find((c) => c.id === id);
-      Object.assign(card, snapBoxVwVh({
+      Object.assign(card, findEmptyBox({
         ...card,
         path: widget.data?.path || card.path,
         x: widget.x ?? card.x,
@@ -3792,7 +4685,7 @@ function receiveWidget(widget) {
         gy: widget.gy ?? card.gy,
         gw: widget.gw ?? card.gw,
         gh: widget.gh ?? card.gh
-      }));
+      }, { pathId: id }));
     }
     if (!state.activePathId) state.activePathId = id;
     persistLayout();
@@ -3804,18 +4697,22 @@ function receiveWidget(widget) {
   }
 
   if (widget.type === "desktop") {
+    if (!state.primary) {
+      toast("系統桌面僅能顯示在主顯示器");
+      return;
+    }
     state.desktopEnabled = true;
-    state.desktopStage = snapBoxVwVh({
-      ...state.desktopStage,
-      x: widget.x ?? state.desktopStage.x,
-      y: widget.y ?? state.desktopStage.y,
-      w: widget.w ?? state.desktopStage.w,
-      h: widget.h ?? state.desktopStage.h,
-      gx: widget.gx ?? state.desktopStage.gx,
-      gy: widget.gy ?? state.desktopStage.gy,
-      gw: widget.gw ?? state.desktopStage.gw,
-      gh: widget.gh ?? state.desktopStage.gh
-    });
+    state.desktopStage = findEmptyBox({
+      ...(state.desktopStage || defaultDesktop()),
+      x: widget.x ?? state.desktopStage?.x,
+      y: widget.y ?? state.desktopStage?.y,
+      w: widget.w ?? state.desktopStage?.w ?? DEFAULT_DESKTOP_PRIMARY.w,
+      h: widget.h ?? state.desktopStage?.h ?? DEFAULT_DESKTOP_PRIMARY.h,
+      gx: widget.gx,
+      gy: widget.gy,
+      gw: widget.gw,
+      gh: widget.gh
+    }, { desktop: true });
     persistLayout();
     rebuildWorkspace();
     toast("已接收桌面容器");
@@ -3931,12 +4828,13 @@ window.addEventListener("keydown", (event) => {
   state.layout = defaults;
   const savedLayout = saved?.layout || null;
   const oldSecondaryMirror = !state.primary && savedLayout && Object.keys(savedLayout).length
-    && Object.keys(savedLayout).every((k) => ["clock", "status", "log"].includes(k));
+    && Object.keys(savedLayout).every((k) => ["clock", "status"].includes(k));
 
   if (savedLayout && !oldSecondaryMirror) {
+    // Trust saved layout exactly — missing keys mean the user closed those panels.
     state.layout = {};
     Object.keys(savedLayout).forEach((key) => {
-      if (key === "status") return;
+      if (key === "status" || REMOVED_PANELS.has(key)) return;
       if (!PANEL_META[key]) return;
       state.layout[key] = { ...(PANEL_META[key].box || {}), ...savedLayout[key] };
     });
@@ -3946,14 +4844,54 @@ window.addEventListener("keydown", (event) => {
     state.layout = defaults;
   }
 
+  // Drop retired panels from memory + disk so they cannot reappear.
+  let strippedRemoved = false;
+  for (const key of REMOVED_PANELS) {
+    if (state.layout[key]) {
+      delete state.layout[key];
+      strippedRemoved = true;
+    }
+  }
+  if (strippedRemoved || Object.keys(savedLayout || {}).some((k) => REMOVED_PANELS.has(k))) {
+    queueMicrotask(async () => {
+      await persistLayout();
+      await purgePanelFromSavedLayouts([...REMOVED_PANELS]);
+    });
+  }
+
   state.desktopStage = saved?.desktopStage
     ? { ...defaultDesktop(), ...saved.desktopStage }
     : defaultDesktop();
   if (saved?.desktopBg && !state.desktopStage.bg) state.desktopStage.bg = saved.desktopBg;
-  state.desktopEnabled = saved?.desktopEnabled !== false;
+  // 系統桌面 only on the primary monitor — force off on secondaries and persist.
+  if (!state.primary) {
+    if (saved?.desktopEnabled !== false) {
+      queueMicrotask(() => persistLayout());
+    }
+    state.desktopEnabled = false;
+  } else {
+    state.desktopEnabled = saved?.desktopEnabled !== false;
+  }
   state.desktopLocked = Boolean(saved?.desktopLocked);
   state.desktopGrouped = Boolean(saved?.desktopGrouped);
   state.desktopFilter = saved?.desktopFilter || "all";
+  state.desktopTabId = saved?.desktopTabId || "classify";
+  state.desktopFolderTabs = Array.isArray(saved?.desktopFolderTabs)
+    ? saved.desktopFolderTabs
+      .filter((tab) => tab?.id && tab?.path)
+      .map((tab) => ({
+        id: String(tab.id),
+        path: String(tab.path),
+        name: String(tab.name || folderTabTitle(tab.path)),
+        listing: null
+      }))
+    : [];
+  if (
+    state.desktopTabId !== "classify"
+    && !(state.desktopFolderTabs || []).some((tab) => tab.id === state.desktopTabId)
+  ) {
+    state.desktopTabId = "classify";
+  }
 
   if (Array.isArray(saved?.pathCards) && saved.pathCards.length) {
     state.pathCards = saved.pathCards.filter((card) => card?.path && card.id !== "desktop");
@@ -4014,6 +4952,7 @@ window.addEventListener("keydown", (event) => {
 
   window.edex.onReceiveWidget((widget) => receiveWidget(widget));
   setupDesktopClickThrough();
+  bindDesktopIconClicks();
 
   window.addEventListener("resize", () => {
     applyUiMetrics();

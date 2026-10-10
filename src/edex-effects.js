@@ -23,11 +23,21 @@
   let bootGlyphs = "0123456789ABCDEFabcdefxyznul";
   let bootLogLoaded = false;
 
+  let themeCache = null;
+  let themeCacheAt = 0;
   function themeRgb() {
+    const now = performance.now();
+    if (themeCache && now - themeCacheAt < 1000) return themeCache;
     const r = getComputedStyle(document.documentElement).getPropertyValue("--color_r").trim() || "170";
     const g = getComputedStyle(document.documentElement).getPropertyValue("--color_g").trim() || "207";
     const b = getComputedStyle(document.documentElement).getPropertyValue("--color_b").trim() || "209";
-    return { r, g, b, css: `rgb(${r},${g},${b})` };
+    themeCache = { r, g, b, css: `rgb(${r},${g},${b})` };
+    themeCacheAt = now;
+    return themeCache;
+  }
+
+  function pageActive() {
+    return document.visibilityState !== "hidden";
   }
 
   function stopGlobe() {
@@ -117,8 +127,8 @@
         if (gen !== globeGen || !globeInstance) return;
         const tick = () => {
           if (gen !== globeGen || !globeInstance) return;
-          globeInstance.tick();
-          animateTimer = setTimeout(() => requestAnimationFrame(tick), 1000 / 24);
+          if (pageActive()) globeInstance.tick();
+          animateTimer = setTimeout(() => requestAnimationFrame(tick), 1000 / 8);
         };
         tick();
         setTimeout(() => {
@@ -196,6 +206,7 @@
   }
 
   function drawSeries(canvas, series, palette, invert) {
+    // Bar chart (柱狀) for network traffic
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     const dpr = window.devicePixelRatio || 1;
@@ -205,33 +216,108 @@
     canvas.height = Math.floor(h * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
-    if (series.length < 2) return;
-    const pts = toPoints(series, w, h, invert);
-    const fillBottom = invert ? 0 : h;
+    if (!series.length) return;
 
-    ctx.save();
-    strokeArcSpline(ctx, pts);
-    const last = pts[pts.length - 1];
-    ctx.lineTo(last.x, fillBottom);
-    ctx.lineTo(pts[0].x, fillBottom);
-    ctx.closePath();
-    const fill = ctx.createLinearGradient(0, invert ? h : 0, 0, fillBottom);
-    fill.addColorStop(0, palette.fill0);
-    fill.addColorStop(1, palette.fill1);
-    ctx.fillStyle = fill;
-    ctx.fill();
-    ctx.restore();
+    const max = Math.max(1, ...series);
+    const n = series.length;
+    const gap = Math.max(0.5, Math.min(2.2, w / (n * 4)));
+    const barW = Math.max(1.2, (w - gap * (n + 1)) / n);
 
-    ctx.save();
-    ctx.lineJoin = "round";
-    ctx.lineCap = "round";
-    ctx.lineWidth = 1.15;
+    for (let i = 0; i < n; i += 1) {
+      const v = Math.max(0, series[i] || 0);
+      const ratio = Math.max(0.02, Math.min(1, v / max));
+      const bh = Math.max(1, ratio * (h - 3));
+      const x = gap + i * (barW + gap);
+      const y = invert ? 1.5 : h - bh - 1.5;
+      const grad = ctx.createLinearGradient(0, invert ? 0 : h, 0, invert ? h : 0);
+      grad.addColorStop(0, palette.fill0);
+      grad.addColorStop(1, palette.stroke);
+      ctx.fillStyle = grad;
+      ctx.shadowColor = palette.glow;
+      ctx.shadowBlur = i === n - 1 ? 5 : 0;
+      ctx.fillRect(x, y, barW, bh);
+    }
+    ctx.shadowBlur = 0;
+
+    // Latest bar outline
+    const last = n - 1;
+    const lv = Math.max(0, series[last] || 0);
+    const lr = Math.max(0.02, Math.min(1, lv / max));
+    const lbh = Math.max(1, lr * (h - 3));
+    const lx = gap + last * (barW + gap);
+    const ly = invert ? 1.5 : h - lbh - 1.5;
     ctx.strokeStyle = palette.stroke;
-    ctx.shadowColor = palette.glow;
-    ctx.shadowBlur = 6;
-    strokeArcSpline(ctx, pts);
-    ctx.stroke();
-    ctx.restore();
+    ctx.lineWidth = 1;
+    ctx.strokeRect(lx + 0.5, ly + 0.5, Math.max(0.5, barW - 1), Math.max(0.5, lbh - 1));
+  }
+
+  function cpuLoadColor(pct) {
+    if (pct >= 90) return { stroke: "#ff4d4d", glow: "rgba(255,77,77,0.55)", fill0: "rgba(255,77,77,0.35)", fill1: "rgba(255,77,77,0.05)", level: "crit" };
+    if (pct >= 70) return { stroke: "#ffb040", glow: "rgba(255,176,64,0.5)", fill0: "rgba(255,176,64,0.3)", fill1: "rgba(255,176,64,0.04)", level: "warn" };
+    if (pct >= 45) return { stroke: "#5b8cff", glow: "rgba(91,140,255,0.45)", fill0: "rgba(91,140,255,0.28)", fill1: "rgba(91,140,255,0.04)", level: "mid" };
+    return { stroke: "#2ee6c7", glow: "rgba(46,230,199,0.45)", fill0: "rgba(46,230,199,0.28)", fill1: "rgba(46,230,199,0.04)", level: "ok" };
+  }
+
+  /** Build a fine column-flow point grid once (cols × rows). */
+  function ensurePointmap(host, cols, rows) {
+    if (!host) return null;
+    const c = Math.max(8, cols | 0);
+    const r = Math.max(4, rows | 0);
+    const need = c * r;
+    if (host.dataset.pmCols === String(c) && host.dataset.pmRows === String(r) && host.childElementCount === need) {
+      return host;
+    }
+    host.dataset.pmCols = String(c);
+    host.dataset.pmRows = String(r);
+    host.style.setProperty("--pm-cols", String(c));
+    host.style.setProperty("--pm-rows", String(r));
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < need; i += 1) {
+      const d = document.createElement("div");
+      d.className = "edex-pt free";
+      frag.appendChild(d);
+    }
+    host.replaceChildren(frag);
+    return host;
+  }
+
+  /**
+   * Paint a time-series as a fine vertical-bar point matrix.
+   * grid-auto-flow: column → each column is one sample; dots light from bottom.
+   * series values are 0..100 (or pass normalize=true with absolute units).
+   */
+  function paintSeriesPointmap(host, series, opts = {}) {
+    const cols = Number(host?.dataset?.cols || opts.cols || 48);
+    const rows = Number(host?.dataset?.rows || opts.rows || 12);
+    const map = ensurePointmap(host, cols, rows);
+    if (!map) return;
+    const pts = map.children;
+    const list = Array.isArray(series) ? series : [];
+    let max = opts.max;
+    if (!(max > 0)) {
+      max = 0;
+      for (const v of list) max = Math.max(max, Number(v) || 0);
+      if (!(max > 0)) max = 1;
+    }
+    const useCpuTone = Boolean(opts.cpuTone);
+    for (let col = 0; col < cols; col += 1) {
+      const idx = list.length - cols + col;
+      const raw = idx >= 0 ? Number(list[idx]) || 0 : 0;
+      const pct = opts.asPercent ? Math.max(0, Math.min(100, raw)) : Math.max(0, Math.min(100, (raw / max) * 100));
+      const lit = Math.round((pct / 100) * rows);
+      const tone = useCpuTone ? cpuLoadColor(pct).level : "";
+      for (let row = 0; row < rows; row += 1) {
+        // column-major: index = col * rows + row; row 0 is top
+        const el = pts[col * rows + row];
+        if (!el) continue;
+        const fromBottom = rows - 1 - row;
+        if (fromBottom < lit) {
+          el.className = tone ? `edex-pt on ${tone}` : "edex-pt on";
+        } else {
+          el.className = "edex-pt free";
+        }
+      }
+    }
   }
 
   const CHART_COLORS = {
@@ -374,8 +460,16 @@
     trafficHistory.down.push(sample.downBps || 0);
     if (trafficHistory.up.length > 72) trafficHistory.up.shift();
     if (trafficHistory.down.length > 72) trafficHistory.down.shift();
-    drawSeries(document.getElementById("mod_conninfo_canvas_top"), trafficHistory.up, CHART_COLORS.up, false);
-    drawSeries(document.getElementById("mod_conninfo_canvas_bottom"), trafficHistory.down, CHART_COLORS.down, true);
+    // Shared scale so up/down are comparable on the fine point grid.
+    let peak = 1;
+    for (const v of trafficHistory.up) peak = Math.max(peak, Number(v) || 0);
+    for (const v of trafficHistory.down) peak = Math.max(peak, Number(v) || 0);
+    paintSeriesPointmap(document.getElementById("mod_conninfo_pointmap_up"), trafficHistory.up, {
+      cols: 48, rows: 10, max: peak
+    });
+    paintSeriesPointmap(document.getElementById("mod_conninfo_pointmap_down"), trafficHistory.down, {
+      cols: 48, rows: 10, max: peak
+    });
     const current = document.querySelector("#mod_conninfo_innercontainer > h1 > i");
     const total = document.querySelector("#mod_conninfo_innercontainer > h2 > i");
     if (current) {
@@ -390,57 +484,37 @@
     if (!document.getElementById("mod_cpuinfo") || !window.edex?.getCpuMetrics) return;
     const cpu = await window.edex.getCpuMetrics();
     const cores = Math.max(1, cpu.cores || cpu.percents?.length || 1);
-    const percents = (cpu.percents || []).slice(0, cores);
-    while (percents.length < cores) percents.push(0);
+    const totalPct = Math.max(0, Math.min(100, Number(cpu.avg) || 0));
 
-    if (cpuHistory.length !== cores) {
-      cpuHistory = Array.from({ length: cores }, () => []);
+    if (!Array.isArray(cpuHistory) || cpuHistory.length !== 1 || !Array.isArray(cpuHistory[0])) {
+      cpuHistory = [[]];
     }
-    percents.forEach((p, i) => {
-      cpuHistory[i].push(p);
-      if (cpuHistory[i].length > 60) cpuHistory[i].shift();
+    cpuHistory[0].push(totalPct);
+    if (cpuHistory[0].length > 72) cpuHistory[0].shift();
+
+    const name = document.getElementById("mod_cpuinfo_name")
+      || document.querySelector("#mod_cpuinfo_innercontainer > h1 > i");
+    if (name) name.textContent = cpu.name || "CPU";
+
+    const totalEl = document.getElementById("mod_cpuinfo_total");
+    const loadBox = document.querySelector(".cpu-total-load");
+    const pal = cpuLoadColor(totalPct);
+    if (totalEl) totalEl.textContent = `${totalPct.toFixed(0)}%`;
+    if (loadBox) {
+      loadBox.dataset.cpuLevel = pal.level;
+      loadBox.style.setProperty("--cpu-load-color", pal.stroke);
+    }
+
+    paintSeriesPointmap(document.getElementById("mod_cpuinfo_pointmap"), cpuHistory[0], {
+      cols: 48, rows: 12, asPercent: true, cpuTone: true
     });
-
-    const name = document.querySelector("#mod_cpuinfo_innercontainer > h1 > i");
-    if (name) name.textContent = `${cpu.name} · ${cpu.avg.toFixed(0)}%`;
-
-    const bars = ensureCoreBars(document.getElementById("mod_cpuinfo_corebars"), cores);
-    bars.forEach((el, i) => {
-      const pct = Math.max(0, Math.min(100, percents[i] || 0));
-      const fill = el.querySelector("i");
-      const label = el.querySelector(".cpu-core-pct");
-      if (fill) fill.style.height = `${pct}%`;
-      if (label) label.textContent = `${pct.toFixed(0)}`;
-      el.classList.toggle("hot", pct >= 85);
-      el.classList.toggle("warm", pct >= 55 && pct < 85);
-    });
-
-    const mid = Math.max(1, Math.floor(cores / 2));
-    const seriesA = cpuHistory.slice(0, mid);
-    const seriesB = cpuHistory.slice(mid);
-    drawMultiSeries(document.getElementById("mod_cpuinfo_canvas_0"), seriesA, "a");
-    drawMultiSeries(document.getElementById("mod_cpuinfo_canvas_1"), seriesB, "b");
-
-    const avg = (list) => {
-      if (!list.length) return 0;
-      const last = list.map((s) => s[s.length - 1] || 0);
-      return last.reduce((a, b) => a + b, 0) / last.length;
-    };
-    const c0 = document.getElementById("mod_cpuinfo_usagecounter0");
-    const c1 = document.getElementById("mod_cpuinfo_usagecounter1");
-    const r0 = document.getElementById("mod_cpuinfo_range0");
-    const r1 = document.getElementById("mod_cpuinfo_range1");
-    if (r0) r0.textContent = `1-${mid}`;
-    if (r1) r1.textContent = `${mid + 1}-${cores}`;
-    if (c0) c0.textContent = `Avg. ${avg(seriesA).toFixed(0)}%`;
-    if (c1) c1.textContent = `Avg. ${avg(seriesB).toFixed(0)}%`;
 
     const temp = document.getElementById("mod_cpuinfo_temp");
     if (temp) temp.textContent = String(cores);
     const mn = document.getElementById("mod_cpuinfo_speed_min");
     const mx = document.getElementById("mod_cpuinfo_speed_max");
-    if (mn) mn.textContent = `${cpu.speedMin.toFixed(2)}GHz`;
-    if (mx) mx.textContent = `${cpu.speedMax.toFixed(2)}GHz`;
+    if (mn) mn.textContent = `${Number(cpu.speedMin || 0).toFixed(2)}GHz`;
+    if (mx) mx.textContent = `${Number(cpu.speedMax || 0).toFixed(2)}GHz`;
   }
 
   async function refreshMem() {
@@ -478,11 +552,16 @@
     const wave = document.getElementById("mod_ramwatcher_wave");
     if (wave && memHistory.length >= 2) {
       const ctx = wave.getContext("2d");
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = Math.min(1.5, window.devicePixelRatio || 1);
       const w = Math.max(40, wave.clientWidth || 200);
       const h = Math.max(24, wave.clientHeight || 40);
-      wave.width = Math.floor(w * dpr);
-      wave.height = Math.floor(h * dpr);
+      const bw = Math.floor(w * dpr);
+      const bh = Math.floor(h * dpr);
+      // Avoid reallocating canvas buffer every poll (major GC / GPU cost)
+      if (wave.width !== bw || wave.height !== bh) {
+        wave.width = bw;
+        wave.height = bh;
+      }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
       const pts = toPointsFixed(memHistory, w, h, 100);
@@ -564,31 +643,31 @@
     }
     if (document.getElementById("mod_netstat")) {
       refreshNetstat();
-      netTimer = setInterval(refreshNetstat, 2500);
+      netTimer = setInterval(() => { if (pageActive()) refreshNetstat(); }, 12000);
     }
     if (document.getElementById("mod_conninfo")) {
       refreshTraffic();
-      trafficTimer = setInterval(refreshTraffic, 1000);
+      trafficTimer = setInterval(() => { if (pageActive()) refreshTraffic(); }, 6000);
     }
     if (document.getElementById("mod_cpuinfo")) {
       refreshCpu();
-      cpuTimer = setInterval(refreshCpu, 1000);
+      cpuTimer = setInterval(() => { if (pageActive()) refreshCpu(); }, 5000);
     }
     if (document.getElementById("mod_ramwatcher")) {
       refreshMem();
-      memTimer = setInterval(refreshMem, 1000);
+      memTimer = setInterval(() => { if (pageActive()) refreshMem(); }, 5000);
     }
     if (document.getElementById("sys_uptime")) {
       refreshSys();
-      sysTimer = setInterval(refreshSys, 1000);
+      sysTimer = setInterval(() => { if (pageActive()) refreshSys(); }, 12000);
     }
     if (document.getElementById("mod_hardwareInspector")) {
       refreshHardware();
-      hwTimer = setInterval(refreshHardware, 20000);
+      hwTimer = setInterval(() => { if (pageActive()) refreshHardware(); }, 30000);
     }
     if (document.getElementById("mod_toplist_table")) {
       refreshToplist();
-      topTimer = setInterval(refreshToplist, 2500);
+      topTimer = setInterval(() => { if (pageActive()) refreshToplist(); }, 15000);
     }
     if (document.getElementById("mod_coderain_canvas")) startRain();
   }
@@ -641,7 +720,7 @@
   function layoutRain(canvas) {
     const host = document.getElementById("mod_coderain_stream") || canvas?.parentElement;
     if (!canvas || !host) return;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = 1;
     const w = Math.max(48, canvas.clientWidth || host.clientWidth || 200);
     const h = Math.max(48, canvas.clientHeight || host.clientHeight || 120);
     canvas.width = Math.floor(w * dpr);
@@ -675,11 +754,16 @@
     });
     rainObs.observe(host);
 
-    const tick = () => {
+    let rainLast = 0;
+    const tick = (ts) => {
+      rainRaf = requestAnimationFrame(tick);
       if (!document.getElementById("mod_coderain_canvas") || !rainState) {
         rainRaf = null;
         return;
       }
+      if (!pageActive()) return;
+      if (rainLast && ts - rainLast < 80) return; // ~12 fps
+      rainLast = ts;
       const { ctx, w, h, cols, drops, baseSpeed } = rainState;
       const font = rainOpts.fontSize;
       const rgb = themeRgb();
@@ -701,7 +785,6 @@
         drops[i] += (baseSpeed[i] || 0.4) * rainOpts.speed;
         if (y > h && Math.random() > 0.96) drops[i] = -Math.random() * 12;
       }
-      rainRaf = requestAnimationFrame(tick);
     };
     rainRaf = requestAnimationFrame(tick);
   }
