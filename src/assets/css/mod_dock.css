@@ -1,0 +1,77 @@
+/* Bottom dock — opaque frame flush to screen bottom; circuit glow on canvas */
+
+#mod_dock.dock-root {
+    position: relative;
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    user-select: none;
+    pointer-events: none !important;
+    contain: layout paint;
+}
+
+.dock-shell {
+    position: absolute;
+    inset: 0;
+    background: rgb(8, 12, 14);
+    border: none;
+    pointer-events: none;
+    transform: translateZ(0);
+}
+
+/* Rounded — only top corners; bottom flush to screen edge */
+#mod_dock.is-rounded .dock-shell {
+    border-radius: 0.95rem 0.95rem 0 0;
+}
+
+/* Sharp rectangle */
+#mod_dock.is-rect .dock-shell {
+    border-radius: 0;
+}
+
+/* Trapezoid — wide base flush to screen bottom (symmetric inset) */
+#mod_dock.is-trap .dock-shell {
+    border-radius: 0;
+    clip-path: polygon(7% 0%, 93% 0%, 100% 100%, 0% 100%);
+}
+
+.dock-fx {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 2;
+    transform: translateZ(0);
+}
+
+.hud-card.dock-bare {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    overflow: visible;
+    z-index: 0;
+    pointer-events: none !important;
+    /* Geometry is owned by dock-panel (bottom-center); ignore layout % drift */
+    position: fixed !important;
+}
+
+.hud-card.dock-bare .card-title,
+.hud-card.dock-bare .resize-handle {
+    display: none !important;
+}
+
+.hud-card.dock-bare .card-body {
+    overflow: visible;
+    background: transparent !important;
+    padding: 0;
+    height: 100%;
+    pointer-events: none !important;
+}
+
+.hud-card.dock-bare .card-body > #mod_dock {
+    height: 100%;
+}

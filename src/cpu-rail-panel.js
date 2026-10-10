@@ -335,11 +335,12 @@
       const pts = fanPath(pin, terminal, branch);
       const d = ptsToD(pts);
       const len = pathLength(pts);
-      // Fewer animated traces → much lower compositor / paint cost.
-      const glow = rand() > 0.72;
+      // Pulse subset feeds canvas FX (not SVG animation).
+      const glow = rand() > 0.55;
 
       traces.push({
         d,
+        pts,
         len,
         pulse: glow,
         slow: rand() > 0.55,
@@ -406,6 +407,7 @@
     ring.forEach((pts) => {
       traces.push({
         d: ptsToD(pts),
+        pts,
         len: pathLength(pts),
         pulse: true,
         slow: true,
@@ -504,6 +506,7 @@
       <div id="mod_cpu_rail" class="cpu-rail-root">
         <div class="cpu-rail-stage" data-cpu-rail-stage>
           <div data-cpu-rail-svg></div>
+          <canvas class="cpu-rail-fx" data-cpu-rail-fx aria-hidden="true"></canvas>
           <div class="cpu-rail-chip-face" data-cpu-rail-face>
             <div class="cpu-rail-logo" data-cpu-rail-logo></div>
             <div class="cpu-rail-model" data-cpu-rail-model>DETECTING…</div>
@@ -516,6 +519,40 @@
           <span>CLK <b data-cpu-rail-clk>—</b></span>
         </div>
       </div>`;
+  }
+
+  /** Sample a point along polyline pts at normalized t ∈ [0,1]. */
+  function pointAt(pts, t) {
+    if (!pts?.length) return [0, 0];
+    if (pts.length === 1) return pts[0];
+    let total = 0;
+    const seg = [];
+    for (let i = 1; i < pts.length; i++) {
+      const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+      seg.push(d);
+      total += d;
+    }
+    if (total < 1e-6) return pts[0];
+    let dist = ((t % 1) + 1) % 1 * total;
+    for (let i = 0; i < seg.length; i++) {
+      if (dist <= seg[i] || i === seg.length - 1) {
+        const u = seg[i] < 1e-6 ? 0 : dist / seg[i];
+        const a = pts[i];
+        const b = pts[i + 1];
+        return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u];
+      }
+      dist -= seg[i];
+    }
+    return pts[pts.length - 1];
+  }
+
+  function themeRailRgb() {
+    const cs = getComputedStyle(document.documentElement);
+    return {
+      r: Number(cs.getPropertyValue("--color_r")) || 170,
+      g: Number(cs.getPropertyValue("--color_g")) || 207,
+      b: Number(cs.getPropertyValue("--color_b")) || 209
+    };
   }
 
   function placeChipFace(root) {
@@ -539,20 +576,152 @@
     if (!root) return;
 
     const svgHost = root.querySelector("[data-cpu-rail-svg]");
-    // v5: fully static schematic (no SMIL / dash animation runtime).
-    if (svgHost && svgHost.dataset.drawn !== "v5") {
+    const fxCanvas = root.querySelector("[data-cpu-rail-fx]");
+    // v6: static SVG + canvas FX overlay (desynchronized 2D → GPU compositing).
+    if (svgHost && svgHost.dataset.drawn !== "v6") {
       const data = buildSchematic(13);
       root._cpuRailData = data;
       svgHost.innerHTML = schematicSvg(data);
-      svgHost.dataset.drawn = "v5";
+      svgHost.dataset.drawn = "v6";
     }
 
-    const syncPause = () => {
-      root.classList.toggle("cpu-rail-paused", document.visibilityState === "hidden");
-    };
-    syncPause();
+    const pulseTraces = (root._cpuRailData?.traces || []).filter((t) => t.pulse && t.pts?.length);
+    // Precompute bead phases so motion looks continuous without SVG SMIL.
+    pulseTraces.forEach((t, i) => {
+      if (t._beads) return;
+      const n = t.ring ? 4 : 2 + (i % 2);
+      t._beads = Array.from({ length: n }, (_, k) => ({
+        phase: (k / n) + (t.delay || 0) * 0.08,
+        speed: t.slow ? 0.18 : 0.32
+      }));
+    });
 
-    const layout = () => placeChipFace(root);
+    let fxCtx = null;
+    let fxW = 0;
+    let fxH = 0;
+    let fxDpr = 1;
+    let lastFx = 0;
+    const FRAME_MS = 1000 / 12;
+
+    const fitFx = () => {
+      if (!fxCanvas) return;
+      const stage = root.querySelector("[data-cpu-rail-stage]");
+      if (!stage) return;
+      const rect = stage.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      const w = Math.max(1, Math.round(rect.width));
+      const h = Math.max(1, Math.round(rect.height));
+      if (fxCanvas.width !== Math.round(w * dpr) || fxCanvas.height !== Math.round(h * dpr)) {
+        fxCanvas.width = Math.round(w * dpr);
+        fxCanvas.height = Math.round(h * dpr);
+        fxCanvas.style.width = `${w}px`;
+        fxCanvas.style.height = `${h}px`;
+        fxCtx = null;
+      }
+      fxW = w;
+      fxH = h;
+      fxDpr = dpr;
+      if (!fxCtx) {
+        try {
+          fxCtx = fxCanvas.getContext("2d", { alpha: true, desynchronized: true });
+        } catch {
+          fxCtx = fxCanvas.getContext("2d", { alpha: true });
+        }
+      }
+    };
+
+    const paintFx = (ts) => {
+      if (!fxCanvas || !pulseTraces.length) return;
+      fitFx();
+      if (!fxCtx || fxW < 8 || fxH < 8) return;
+      const scale = Math.min(fxW / VIEW_W, fxH / VIEW_H);
+      const ox = (fxW - VIEW_W * scale) / 2;
+      const oy = (fxH - VIEW_H * scale) / 2;
+      const c = themeRailRgb();
+      const t = ts / 1000;
+
+      fxCtx.setTransform(fxDpr, 0, 0, fxDpr, 0, 0);
+      fxCtx.clearRect(0, 0, fxW, fxH);
+      fxCtx.save();
+      fxCtx.translate(ox, oy);
+      fxCtx.scale(scale, scale);
+
+      // Flow dashes along pulsed rails
+      pulseTraces.forEach((tr, i) => {
+        const pts = tr.pts;
+        if (!pts || pts.length < 2) return;
+        const dashLen = tr.ring ? 14 : 10;
+        const gap = tr.ring ? 18 : 14;
+        const period = dashLen + gap;
+        const speed = tr.slow ? 28 : 48;
+        const offset = ((t * speed + (tr.delay || 0) * 20 + i * 7) % period + period) % period;
+
+        fxCtx.beginPath();
+        fxCtx.moveTo(pts[0][0], pts[0][1]);
+        for (let p = 1; p < pts.length; p++) fxCtx.lineTo(pts[p][0], pts[p][1]);
+        fxCtx.strokeStyle = `rgba(${c.r},${c.g},${c.b},${tr.ring ? 0.55 : 0.42})`;
+        fxCtx.lineWidth = tr.ring ? 1.6 : 1.35;
+        fxCtx.lineCap = "square";
+        fxCtx.lineJoin = "miter";
+        fxCtx.setLineDash([dashLen, gap]);
+        fxCtx.lineDashOffset = -offset;
+        fxCtx.stroke();
+        fxCtx.setLineDash([]);
+      });
+
+      // Energy beads
+      pulseTraces.forEach((tr) => {
+        (tr._beads || []).forEach((b) => {
+          const u = (t * b.speed + b.phase) % 1;
+          const [x, y] = pointAt(tr.pts, u);
+          fxCtx.beginPath();
+          fxCtx.arc(x, y, tr.ring ? 2.6 : 2.1, 0, Math.PI * 2);
+          fxCtx.fillStyle = `rgba(${c.r},${c.g},${c.b},0.92)`;
+          fxCtx.fill();
+          fxCtx.beginPath();
+          fxCtx.arc(x, y, tr.ring ? 5.5 : 4.2, 0, Math.PI * 2);
+          fxCtx.strokeStyle = `rgba(${c.r},${c.g},${c.b},0.28)`;
+          fxCtx.lineWidth = 1;
+          fxCtx.stroke();
+        });
+      });
+
+      fxCtx.restore();
+    };
+
+    const fxTick = (ts) => {
+      if (!document.getElementById("mod_cpu_rail")) {
+        state.cpuRailRaf = null;
+        return;
+      }
+      if (document.visibilityState === "hidden" || root.classList.contains("cpu-rail-paused")) {
+        state.cpuRailRaf = null;
+        return;
+      }
+      state.cpuRailRaf = requestAnimationFrame(fxTick);
+      if (lastFx && ts - lastFx < FRAME_MS) return;
+      lastFx = ts;
+      paintFx(ts);
+    };
+
+    const syncPause = () => {
+      const paused = document.visibilityState === "hidden";
+      root.classList.toggle("cpu-rail-paused", paused);
+      if (paused) {
+        if (state.cpuRailRaf) {
+          cancelAnimationFrame(state.cpuRailRaf);
+          state.cpuRailRaf = null;
+        }
+      } else if (!state.cpuRailRaf) {
+        lastFx = 0;
+        state.cpuRailRaf = requestAnimationFrame(fxTick);
+      }
+    };
+
+    const layout = () => {
+      placeChipFace(root);
+      fitFx();
+    };
     layout();
     if (!root.dataset.bound) {
       root.dataset.bound = "1";
@@ -565,6 +734,11 @@
       document.addEventListener("visibilitychange", syncPause);
       state.cpuRailVisHandler = syncPause;
     }
+
+    if (state.cpuRailRaf) cancelAnimationFrame(state.cpuRailRaf);
+    lastFx = 0;
+    state.cpuRailRaf = requestAnimationFrame(fxTick);
+    syncPause();
 
     const refresh = async () => {
       if (!document.getElementById("mod_cpu_rail") || !window.edex?.getCpuMetrics) return;

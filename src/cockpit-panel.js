@@ -166,7 +166,6 @@
       set("lon", (Math.random() * 180).toFixed(2));
     };
     flickerMatrix();
-    // Matrix timer started later — only ticks while card is live/hovered.
 
     const applyKnobVisual = (knob, value) => {
       const min = Number(knob.dataset.min) || 0;
@@ -446,15 +445,72 @@
       ctx.fillText(`SECTOR : ${letter}`, cx, cy + trackR + trackW / 2 + 8);
     };
 
+    /*
+     * Static layer (ticks / spokes / fixed rings) cached offscreen; each frame
+     * only composites that bitmap + rotating rings / sweep / blips on a
+     * desynchronized canvas (~12fps always-on while visible).
+     */
+    let staticLayer = null;
+    let staticKey = "";
+    const rebuildStatic = (w, h, dpr, c) => {
+      const key = `${w}x${h}@${dpr}:${c.r},${c.g},${c.b}`;
+      if (staticLayer && staticKey === key) return;
+      staticKey = key;
+      if (!staticLayer) staticLayer = document.createElement("canvas");
+      staticLayer.width = Math.round(w * dpr);
+      staticLayer.height = Math.round(h * dpr);
+      const sctx = staticLayer.getContext("2d");
+      if (!sctx) return;
+      sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      sctx.clearRect(0, 0, w, h);
+      const cx = w / 2;
+      const cy = h / 2;
+      const R = Math.min(w, h) * 0.42;
+
+      drawTicks(sctx, cx, cy, R * 0.88, R * 0.78, 72, rgba(c, 0.55));
+      drawRing(sctx, cx, cy, R * 0.88, rgba(c, 0.45), 1);
+      drawRing(sctx, cx, cy, R * 0.42, rgba(c, 0.5), 1.5);
+      drawRing(sctx, cx, cy, R * 0.28, rgba(c, 0.85), 2.5);
+      drawRing(sctx, cx, cy, R * 0.14, rgba(c, 0.35), 1);
+
+      sctx.strokeStyle = rgba(c, 0.22);
+      sctx.lineWidth = 1;
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2 - Math.PI / 2;
+        const len = i % 4 === 0 ? R * 0.95 : R * 0.7;
+        sctx.beginPath();
+        sctx.moveTo(cx + Math.cos(a) * R * 0.12, cy + Math.sin(a) * R * 0.12);
+        sctx.lineTo(cx + Math.cos(a) * len, cy + Math.sin(a) * len);
+        sctx.stroke();
+      }
+
+      sctx.strokeStyle = rgba(c, 0.7);
+      sctx.lineWidth = 1.2;
+      sctx.beginPath();
+      sctx.moveTo(cx - 8, cy);
+      sctx.lineTo(cx + 8, cy);
+      sctx.moveTo(cx, cy - 8);
+      sctx.lineTo(cx, cy + 8);
+      sctx.stroke();
+      sctx.beginPath();
+      sctx.arc(cx, cy, 3, 0, Math.PI * 2);
+      sctx.fillStyle = rgba(c, 0.95);
+      sctx.fill();
+    };
+
     const drawMainRadar = (t, dt) => {
       if (!radarCanvas) return;
       const { w, h, dpr } = fitCanvas(radarCanvas);
       if (w < 16 || h < 16) return;
       const ctx = getCtx(radarCanvas);
       if (!ctx) return;
+      const c = themeRgb();
+      rebuildStatic(w, h, dpr, c);
+
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
-      const c = themeRgb();
+      if (staticLayer) ctx.drawImage(staticLayer, 0, 0, w, h);
+
       const cx = w / 2;
       const cy = h / 2;
       const R = Math.min(w, h) * 0.42;
@@ -462,7 +518,7 @@
       sweepAngle = (sweepAngle + dt * 0.85) % (Math.PI * 2);
       ringSpin = (ringSpin + dt * 0.12) % (Math.PI * 2);
 
-      // outer thick segmented ring
+      // outer thick segmented ring (rotating)
       ctx.save();
       ctx.translate(cx, cy);
       ctx.rotate(-ringSpin * 0.4);
@@ -477,10 +533,6 @@
       }
       ctx.restore();
 
-      // tick scale
-      drawTicks(ctx, cx, cy, R * 0.88, R * 0.78, 72, rgba(c, 0.55));
-      drawRing(ctx, cx, cy, R * 0.88, rgba(c, 0.45), 1);
-
       // dashed rings (rotating)
       ctx.save();
       ctx.translate(cx, cy);
@@ -489,22 +541,6 @@
       ctx.rotate(-ringSpin * 2.2);
       drawRing(ctx, 0, 0, R * 0.58, rgba(c, 0.4), 1, [3, 5]);
       ctx.restore();
-
-      drawRing(ctx, cx, cy, R * 0.42, rgba(c, 0.5), 1.5);
-      drawRing(ctx, cx, cy, R * 0.28, rgba(c, 0.85), 2.5);
-      drawRing(ctx, cx, cy, R * 0.14, rgba(c, 0.35), 1);
-
-      // radial spokes
-      ctx.strokeStyle = rgba(c, 0.22);
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 16; i++) {
-        const a = (i / 16) * Math.PI * 2 - Math.PI / 2;
-        const len = i % 4 === 0 ? R * 0.95 : R * 0.7;
-        ctx.beginPath();
-        ctx.moveTo(cx + Math.cos(a) * R * 0.12, cy + Math.sin(a) * R * 0.12);
-        ctx.lineTo(cx + Math.cos(a) * len, cy + Math.sin(a) * len);
-        ctx.stroke();
-      }
 
       // sweep wedge
       const wedge = Math.PI / 3.2;
@@ -521,7 +557,6 @@
       ctx.closePath();
       ctx.fillStyle = grad;
       ctx.fill();
-      // leading edge
       ctx.beginPath();
       ctx.moveTo(0, 0);
       ctx.lineTo(Math.cos(wedge / 2) * R * 0.95, Math.sin(wedge / 2) * R * 0.95);
@@ -530,20 +565,6 @@
       ctx.stroke();
       ctx.restore();
 
-      // center crosshair + dot
-      ctx.strokeStyle = rgba(c, 0.7);
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.moveTo(cx - 8, cy);
-      ctx.lineTo(cx + 8, cy);
-      ctx.moveTo(cx, cy - 8);
-      ctx.lineTo(cx, cy + 8);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(cx, cy, 3, 0, Math.PI * 2);
-      ctx.fillStyle = rgba(c, 0.95);
-      ctx.fill();
-
       // blips + lit by sweep proximity
       radarBlips.forEach((b, i) => {
         b.pulse += dt * 0.6;
@@ -551,7 +572,7 @@
         const rr = b.rad * R * 0.9;
         const x = cx + Math.cos(a - Math.PI / 2) * rr;
         const y = cy + Math.sin(a - Math.PI / 2) * rr;
-        let diff = Math.abs(((a - Math.PI / 2) - sweepAngle + Math.PI * 3) % (Math.PI * 2) - Math.PI);
+        const diff = Math.abs(((a - Math.PI / 2) - sweepAngle + Math.PI * 3) % (Math.PI * 2) - Math.PI);
         const lit = Math.max(0.2, 1 - diff / Math.PI);
         const size = 1.8 + lit * 1.6;
         ctx.beginPath();
@@ -565,7 +586,6 @@
           ctx.lineWidth = 1;
           ctx.stroke();
         }
-        // random matrix digits near some blips
         if (i % 3 === 0 && lit > 0.45) {
           ctx.fillStyle = rgba(c, 0.55 + lit * 0.35);
           ctx.font = `400 ${Math.max(6, Math.floor(R * 0.07))}px ${pixelFont()}`;
@@ -576,7 +596,6 @@
         }
       });
 
-      // floating matrix readouts around rim
       ctx.font = `400 ${Math.max(7, Math.floor(R * 0.08))}px ${pixelFont()}`;
       ctx.fillStyle = rgba(c, 0.65);
       const rimNums = [
@@ -594,22 +613,19 @@
       });
     };
 
-    /*
-     * Idle by default: paint a static frame once, then only run RAF while the
-     * card is hovered / focused (~8fps). Canvas2D is CPU-bound; this cuts idle cost to ~0.
-     */
-    const FRAME_MS = 125;
+    const FRAME_MS = 1000 / 12;
     let sectorPaintAt = 0;
-    let live = false;
+    let paintStamp = 0;
     const card = document.getElementById("card_cockpit");
 
     const paintFrame = (ts, forceSectors = false) => {
-      const t = (ts || performance.now()) / 1000;
-      const dt = lastTs ? Math.min(0.12, ((ts || performance.now()) - lastTs) / 1000) : 0.016;
-      lastTs = ts || performance.now();
+      const now = ts || performance.now();
+      const t = now / 1000;
+      const dt = paintStamp ? Math.min(0.12, (now - paintStamp) / 1000) : 0.016;
+      paintStamp = now;
       drawMainRadar(t, dt);
-      if (forceSectors || !sectorPaintAt || lastTs - sectorPaintAt > 900) {
-        sectorPaintAt = lastTs;
+      if (forceSectors || !sectorPaintAt || now - sectorPaintAt > 500) {
+        sectorPaintAt = now;
         sectorState.forEach((s) => drawSector(s, t));
       }
     };
@@ -619,55 +635,54 @@
         state.cockpitRaf = null;
         return;
       }
-      if (!live || document.visibilityState === "hidden") {
+      if (document.visibilityState === "hidden") {
         state.cockpitRaf = null;
-        lastTs = 0;
+        paintStamp = 0;
         return;
       }
       state.cockpitRaf = requestAnimationFrame(tick);
-      if (lastTs && ts - lastTs < FRAME_MS) return;
+      if (paintStamp && ts - paintStamp < FRAME_MS) return;
       paintFrame(ts, false);
     };
 
-    const startLive = () => {
-      if (live) return;
-      live = true;
-      setStatus("SCAN LIVE");
+    const ensureLive = () => {
+      if (document.visibilityState === "hidden") return;
       if (!state.cockpitRaf) state.cockpitRaf = requestAnimationFrame(tick);
     };
-    const stopLive = () => {
-      live = false;
-      if (state.cockpitRaf) {
-        cancelAnimationFrame(state.cockpitRaf);
-        state.cockpitRaf = null;
-      }
-      setStatus("SCAN IDLE");
-    };
 
-    // Initial measure + one static paint (no continuous RAF).
     if (radarCanvas) measureCanvas(radarCanvas);
     sectorCanvases.forEach((c) => measureCanvas(c));
     paintFrame(performance.now(), true);
+    ensureLive();
+    setStatus("SCAN LIVE");
 
     const radarWrap = document.getElementById("ckp_radar_wrap");
     radarWrap?.addEventListener("pointerdown", (event) => {
       event.stopPropagation();
-      startLive();
       setStatus("SCAN LOCK");
       window.setTimeout(() => {
         if (status()?.textContent === "SCAN LOCK") setStatus("TRACKING");
       }, 650);
     });
 
-    card?.addEventListener("pointerenter", startLive);
-    card?.addEventListener("pointerleave", stopLive);
-    card?.addEventListener("focusin", startLive);
-    card?.addEventListener("focusout", (event) => {
-      if (!card.contains(event.relatedTarget)) stopLive();
+    card?.addEventListener("pointerenter", () => setStatus("SCAN LIVE"));
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") {
+        if (state.cockpitRaf) {
+          cancelAnimationFrame(state.cockpitRaf);
+          state.cockpitRaf = null;
+        }
+        paintStamp = 0;
+      } else {
+        ensureLive();
+        setStatus("SCAN LIVE");
+      }
     });
 
     if (typeof ResizeObserver !== "undefined") {
       const ro = new ResizeObserver(() => {
+        staticKey = "";
         if (radarCanvas) measureCanvas(radarCanvas);
         sectorCanvases.forEach((c) => measureCanvas(c));
         paintFrame(performance.now(), true);
@@ -679,18 +694,16 @@
       });
     }
 
-    // Slow matrix flicker only while live / visible.
     if (state.cockpitMatrixTimer) {
       clearInterval(state.cockpitMatrixTimer);
       state.cockpitMatrixTimer = null;
     }
     state.cockpitMatrixTimer = window.setInterval(() => {
-      if (document.visibilityState === "hidden" || !live) return;
+      if (document.visibilityState === "hidden") return;
       flickerMatrix();
-    }, 1500);
+    }, 1200);
 
     syncReadouts();
-    setStatus("SCAN IDLE");
   }
 
   window.cockpitPanel = { bodyHtml, bind };

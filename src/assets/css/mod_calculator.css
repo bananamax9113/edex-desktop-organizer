@@ -15,9 +15,9 @@
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    gap: 0.15rem;
-    min-height: 3.6rem;
-    padding: 0.45rem 0.55rem;
+    gap: 0.4rem;
+    min-height: 6.8rem;
+    padding: 0.7rem 0.75rem 0.85rem;
     border: 1px solid rgba(var(--color_r), var(--color_g), var(--color_b), 0.35);
     background:
         linear-gradient(180deg, rgba(var(--color_r), var(--color_g), var(--color_b), 0.08), transparent 55%),
@@ -26,28 +26,35 @@
 }
 
 #mod_calculator .calc-expr {
-    min-height: 1.1rem;
-    font-family: var(--font_mono), monospace;
-    font-size: 0.95rem;
+    min-height: 1.25rem;
+    font-family: "Share Tech Mono", var(--font_mono), ui-monospace, monospace;
+    font-size: 1.05rem;
     letter-spacing: 0.04em;
+    line-height: 1.35;
     text-align: right;
     opacity: 0.55;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
 }
 
 #mod_calculator .calc-display {
-    font-family: var(--font_mono), monospace;
-    font-size: 1.85rem;
-    line-height: 1.15;
-    letter-spacing: 0.03em;
+    min-height: 2.9rem;
+    font-family: "Share Tech Mono", var(--font_mono), ui-monospace, monospace;
+    font-size: 2.35rem;
+    font-weight: 400;
+    line-height: 1.25;
+    letter-spacing: 0.04em;
     text-align: right;
     color: rgb(var(--color_r), var(--color_g), var(--color_b));
-    text-shadow: 0 0 0.55rem rgba(var(--color_r), var(--color_g), var(--color_b), 0.35);
+    text-shadow: 0 0 0.45rem rgba(var(--color_r), var(--color_g), var(--color_b), 0.28);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
 }
 
 #mod_calculator .calc-pad {
@@ -69,8 +76,8 @@
     background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.07);
     color: inherit;
     font-family: var(--font_main), sans-serif;
-    font-size: 1.25rem;
-    font-weight: 600;
+    font-size: 2.05rem;
+    font-weight: 700;
     letter-spacing: 0.02em;
     cursor: pointer;
     transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
@@ -87,7 +94,28 @@
 
 #mod_calculator .calc-pad button.calc-fn {
     opacity: 0.9;
-    font-size: 1.1rem;
+    font-size: 1.65rem;
+}
+
+/* C clear — solid amber / orange face */
+#mod_calculator .calc-pad button.calc-clear {
+    opacity: 1;
+    color: #1a1208;
+    background: linear-gradient(180deg, #ffc14d 0%, #e08920 55%, #c96e12 100%);
+    border-color: #f0a83a;
+    font-weight: 700;
+    font-size: 1.85rem;
+}
+
+#mod_calculator .calc-pad button.calc-clear:hover {
+    background: linear-gradient(180deg, #ffd06a 0%, #f09a2c 55%, #d87914 100%);
+    border-color: #ffb84a;
+    color: #1a1208;
+}
+
+#mod_calculator .calc-pad button.calc-clear:active {
+    background: linear-gradient(180deg, #d88918 0%, #b86210 100%);
+    color: #120c06;
 }
 
 #mod_calculator .calc-pad button.calc-op,
@@ -103,7 +131,17 @@
 }
 
 #mod_calculator .calc-pad button.calc-eq {
-    font-size: 1.45rem;
+    font-size: 2.2rem;
+}
+
+#mod_calculator .calc-pad button.calc-op {
+    font-size: 2.15rem;
+}
+
+#mod_calculator .calc-pad button[data-calc="digit"],
+#mod_calculator .calc-pad button[data-calc="dot"] {
+    font-size: 2.35rem;
+    font-weight: 700;
 }
 
 #card_calculator .card-body {

@@ -17,7 +17,8 @@ const {
   restoreWindowAfterFileDrag,
   cancelPreparedFileDrag,
   isFileDragActive,
-  allowForeground
+  allowForeground,
+  raiseExplorerPath
 } = require("./lib/win32-zorder");
 const { listDesktopShortcuts } = require("./lib/desktop-shortcuts");
 const { listDrives } = require("./lib/drives");
@@ -28,6 +29,7 @@ const fileOps = require("./lib/file-ops");
 const clipboardFiles = require("./lib/clipboard-files");
 const cursorChat = require("./lib/cursor-chat");
 const win32Embed = require("./lib/win32-embed");
+const taskbarDock = require("./lib/taskbar-dock");
 const {
   startOleFileDrag,
   warmOleDragDaemon,
@@ -243,13 +245,41 @@ function showBehindApps(win) {
   pinAndKeepBounds(win);
 }
 
+function softPinWindow(win) {
+  if (!win || win.isDestroyed() || isFileDragActive()) return;
+  pinWindowBottom(win, { force: true }).catch(() => {});
+}
+
+/** Burst re-pin after taskbar / app switches raise our overlay above Explorer. */
+function burstPinBottom(win) {
+  softPinWindow(win);
+  for (const ms of [50, 120, 280, 600, 1200]) {
+    setTimeout(() => softPinWindow(win), ms);
+  }
+}
+
 function bindDesktopZOrder(win) {
   win.on("show", () => pinAndKeepBounds(win));
   // Focus fires on every click — only re-pin z-order, never setBounds (that stuttered the UI).
   win.on("focus", () => {
     if (isFileDragActive()) return;
-    pinWindowBottom(win).catch(() => {});
+    burstPinBottom(win);
   });
+  win.on("blur", () => {
+    if (isFileDragActive()) return;
+    softPinWindow(win);
+  });
+}
+
+let zOrderKeepalive = null;
+function startZOrderKeepalive() {
+  if (zOrderKeepalive) return;
+  zOrderKeepalive = setInterval(() => {
+    if (isFileDragActive()) return;
+    for (const win of BrowserWindow.getAllWindows()) {
+      softPinWindow(win);
+    }
+  }, 900);
 }
 
 function createWindowForDisplay(display, index) {
@@ -459,6 +489,7 @@ if (!gotLock) {
     createTray();
     await ensureDaemon();
     warmOleDragDaemon();
+    startZOrderKeepalive();
     fileSearch.configure({
       roots: settings.searchRoots || [],
       includeLocal: settings.searchLocalDrives !== false
@@ -892,85 +923,9 @@ function explorerExe() {
   return path.join(process.env.SystemRoot || "C:\\Windows", "explorer.exe");
 }
 
-/**
- * Unicode-safe open via PowerShell Invoke-Item, then force the new Explorer
- * (or matching folder window) above our fullscreen overlay.
- */
-function invokeItem(targetPath, { raiseExplorer = false } = {}) {
+/** Fallback open when shell.openPath fails (rare Unicode / association edge cases). */
+function invokeItem(targetPath) {
   const literal = String(targetPath).replace(/'/g, "''");
-  const raiseBlock = raiseExplorer
-    ? `
-Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-public static class EdexRaise {
-  [DllImport("user32.dll")] public static extern bool AllowSetForegroundWindow(int pid);
-  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
-  [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr h);
-  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int nCmdShow);
-  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
-  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
-  [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
-  [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr a, int x, int y, int cx, int cy, uint f);
-  [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
-  static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
-  static readonly IntPtr HWND_NOTOPMOST = new IntPtr(-2);
-  public static void ForceFg(IntPtr hwnd) {
-    if (hwnd == IntPtr.Zero) return;
-    AllowSetForegroundWindow(-1);
-    ShowWindow(hwnd, 9);
-    IntPtr fg = GetForegroundWindow();
-    uint fgPid; uint fgTid = GetWindowThreadProcessId(fg, out fgPid);
-    uint cur = GetCurrentThreadId();
-    if (fgTid != 0 && fgTid != cur) AttachThreadInput(cur, fgTid, true);
-    BringWindowToTop(hwnd);
-    SetForegroundWindow(hwnd);
-    SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002);
-    SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002);
-    if (fgTid != 0 && fgTid != cur) AttachThreadInput(cur, fgTid, false);
-  }
-}
-"@
-[EdexRaise]::AllowSetForegroundWindow(-1) | Out-Null
-$before = @{}
-try {
-  $sh0 = New-Object -ComObject Shell.Application
-  foreach ($w in @($sh0.Windows())) { try { $before[[int64]$w.HWND] = $true } catch {} }
-} catch {}
-Invoke-Item -LiteralPath '${literal}'
-$targetNorm = '${literal}'
-try { $targetNorm = [IO.Path]::GetFullPath('${literal}').TrimEnd([char]0x5C).ToLowerInvariant() } catch {}
-$deadline = [Environment]::TickCount + 3000
-$raised = $false
-while (-not $raised -and [Environment]::TickCount -lt $deadline) {
-  Start-Sleep -Milliseconds 120
-  try {
-    $sh = New-Object -ComObject Shell.Application
-    $candidates = @()
-    foreach ($w in @($sh.Windows())) {
-      try {
-        $hwnd = [int64]$w.HWND
-        $loc = $null
-        try { $loc = $w.Document.Folder.Self.Path } catch {}
-        if (-not $loc) { continue }
-        $locNorm = [IO.Path]::GetFullPath($loc).TrimEnd([char]0x5C).ToLowerInvariant()
-        $isNew = -not $before.ContainsKey($hwnd)
-        if ($locNorm -eq $targetNorm) {
-          [EdexRaise]::ForceFg([IntPtr]$hwnd)
-          $raised = $true
-          break
-        }
-        if ($isNew) { $candidates += $hwnd }
-      } catch {}
-    }
-    if (-not $raised -and $candidates.Count -gt 0) {
-      [EdexRaise]::ForceFg([IntPtr]($candidates[-1]))
-      $raised = $true
-    }
-  } catch {}
-}
-`
-    : `Invoke-Item -LiteralPath '${literal}'`;
   return new Promise((resolve) => {
     const child = spawn(
       "powershell.exe",
@@ -981,7 +936,7 @@ while (-not $raised -and [Environment]::TickCount -lt $deadline) {
         "-WindowStyle",
         "Hidden",
         "-Command",
-        `[Console]::OutputEncoding = [Text.Encoding]::UTF8; ${raiseBlock}`
+        `[Console]::OutputEncoding = [Text.Encoding]::UTF8; Invoke-Item -LiteralPath '${literal}'`
       ],
       { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }
     );
@@ -998,17 +953,31 @@ while (-not $raised -and [Environment]::TickCount -lt $deadline) {
   });
 }
 
-function pinAllOverlaysBottom() {
+function pinAllOverlaysBottom({ blur = true } = {}) {
   for (const win of BrowserWindow.getAllWindows()) {
     if (!win || win.isDestroyed()) continue;
-    try {
-      win.blur();
-    } catch {
-      // ignore
+    // blur() while the cursor is over the taskbar fights Explorer and can freeze the UI.
+    if (blur) {
+      try {
+        win.blur();
+      } catch {
+        // ignore
+      }
     }
     pinWindowBottom(win, { force: true }).catch(() => {});
   }
 }
+
+/** Soft re-pin (no blur) — safe for dock keepalive while hovering the taskbar. */
+ipcMain.handle("pin-overlays-bottom", (_e, opts = {}) => {
+  pinAllOverlaysBottom({ blur: opts?.blur !== false && opts?.soft !== true });
+  return { ok: true };
+});
+
+ipcMain.handle("pin-overlays-bottom-soft", () => {
+  pinAllOverlaysBottom({ blur: false });
+  return { ok: true };
+});
 
 ipcMain.handle("open-path", async (event, target) => {
   if (!target) return { ok: false, message: "空路徑" };
@@ -1019,7 +988,7 @@ ipcMain.handle("open-path", async (event, target) => {
   allowForeground();
   const win = getSenderWindow(event);
   // Click raised the overlay in z-order — pin every display back to HWND_BOTTOM
-  // and click-through so Explorer can take the foreground.
+  // and click-through so Explorer / apps can take the foreground.
   pinAllOverlaysBottom();
   for (const w of BrowserWindow.getAllWindows()) {
     if (!w || w.isDestroyed()) continue;
@@ -1036,7 +1005,7 @@ ipcMain.handle("open-path", async (event, target) => {
       setTimeout(() => {
         allowForeground();
         pinAllOverlaysBottom();
-      }, 350);
+      }, 200);
       return { ok: true, path: value };
     }
     if (/\.lnk$/i.test(value)) {
@@ -1048,17 +1017,30 @@ ipcMain.handle("open-path", async (event, target) => {
       return { ok: false, message: `路徑不存在：${resolved}`, path: resolved };
     }
     const isDir = fs.statSync(resolved).isDirectory();
-    // Prefer Invoke-Item for Unicode paths; raise Explorer when opening a folder.
-    const invoked = await invokeItem(resolved, { raiseExplorer: isDir });
-    if (!invoked.ok) {
-      const shellErr = await shell.openPath(resolved);
-      if (shellErr) {
-        console.error("open-path fallback", invoked.message || shellErr);
+    // ShellExecute first — no PowerShell cold start. Invoke-Item only as fallback.
+    let shellErr = "";
+    try {
+      shellErr = await shell.openPath(resolved);
+    } catch (e) {
+      shellErr = e?.message || "shell.openPath failed";
+    }
+    if (shellErr) {
+      const invoked = await invokeItem(resolved);
+      if (!invoked.ok) {
+        console.error("open-path fallback", shellErr || invoked.message);
         return { ok: false, message: shellErr || invoked.message || "開啟失敗", path: resolved };
       }
     }
     allowForeground();
     pinAllOverlaysBottom();
+    // Raise Explorer in background via warm z-order daemon (does not block open).
+    if (isDir) {
+      raiseExplorerPath(resolved).catch(() => {});
+      setTimeout(() => {
+        allowForeground();
+        pinAllOverlaysBottom();
+      }, 280);
+    }
     console.log("[edex] open-path ok", resolved, isDir ? "(dir)" : "(file)");
     return { ok: true, path: resolved, isDirectory: isDir };
   } catch (err) {
@@ -1071,7 +1053,7 @@ ipcMain.handle("open-path", async (event, target) => {
       if (fileDragInFlight || isFileDragActive() || fileDragArmed) {
         applyFileDragMouseMode(win);
       }
-    }, 500);
+    }, 400);
   }
 });
 
@@ -1096,19 +1078,69 @@ ipcMain.handle("pick-program", async (event) => {
   };
 });
 
-ipcMain.handle("list-pinned-programs", () => {
-  const list = Array.isArray(settings?.pinnedPrograms) ? settings.pinnedPrograms : [];
-  return { items: list };
+ipcMain.handle("get-taskbar-metrics", async (event) => {
+  const win = getSenderWindow(event);
+  if (!win || win.isDestroyed()) return null;
+  const display = findDisplay(getWindowDisplayId(win));
+  try {
+    return await taskbarDock.getTaskbarMetricsForWindow(win, display);
+  } catch (err) {
+    console.error("get-taskbar-metrics", err);
+    return null;
+  }
 });
 
-ipcMain.handle("save-pinned-programs", (_e, items) => {
-  const next = Array.isArray(items)
-    ? items.filter((item) => item && item.path).map((item, index) => ({
-      id: String(item.id || `pin${Date.now()}_${index}`),
+ipcMain.handle("list-taskbar-pinned", async () => {
+  try {
+    const items = await taskbarDock.listTaskbarPinnedApps();
+    return { items };
+  } catch (err) {
+    console.error("list-taskbar-pinned", err);
+    return { items: [] };
+  }
+});
+
+ipcMain.handle("get-path-icon", async (_e, target) => {
+  const dataUrl = await taskbarDock.iconForPath(target);
+  return { dataUrl: dataUrl || "" };
+});
+
+ipcMain.handle("list-pinned-programs", async () => {
+  const list = Array.isArray(settings?.pinnedPrograms) ? settings.pinnedPrograms : [];
+  const items = [];
+  for (const item of list) {
+    if (!item?.path) continue;
+    let iconDataUrl = item.iconDataUrl || "";
+    if (!iconDataUrl) iconDataUrl = await taskbarDock.iconForPath(item.path);
+    items.push({
+      id: String(item.id || item.path),
       name: String(item.name || path.basename(String(item.path))).trim(),
-      path: String(item.path)
-    }))
-    : [];
+      path: String(item.path),
+      iconDataUrl,
+      source: item.source || "user"
+    });
+  }
+  return { items };
+});
+
+ipcMain.handle("save-pinned-programs", async (_e, items) => {
+  const next = [];
+  if (Array.isArray(items)) {
+    for (let index = 0; index < items.length; index++) {
+      const item = items[index];
+      if (!item?.path) continue;
+      const target = String(item.path);
+      let iconDataUrl = item.iconDataUrl || "";
+      if (!iconDataUrl) iconDataUrl = await taskbarDock.iconForPath(target);
+      next.push({
+        id: String(item.id || `pin${Date.now()}_${index}`),
+        name: String(item.name || path.basename(target)).trim(),
+        path: target,
+        iconDataUrl,
+        source: item.source || "user"
+      });
+    }
+  }
   settings = saveSettings(app.getPath("userData"), { pinnedPrograms: next });
   {
     const themeName = resolveThemeName(settings.theme || "tron");

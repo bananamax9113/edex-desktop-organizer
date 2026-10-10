@@ -1,7 +1,6 @@
 /*
- * CPU power-rail — STATIC schematic (no continuous SVG animation).
- * Chromium runs stroke-dashoffset / SMIL on the CPU; keep paint idle and
- * promote the whole stage to a single GPU compositing layer.
+ * CPU power-rail — static SVG schematic + canvas FX overlay.
+ * Dash/bead motion runs on a desynchronized 2D canvas (~12fps), not SVG SMIL.
  */
 
 #mod_cpu_rail.cpu-rail-root {
@@ -38,6 +37,21 @@
     height: 100%;
     transform: translateZ(0);
     pointer-events: none;
+}
+
+.cpu-rail-fx {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 2;
+    transform: translateZ(0);
+    will-change: contents;
+}
+
+.cpu-rail-paused .cpu-rail-fx {
+    visibility: hidden;
 }
 
 .cpu-rail-trace {
@@ -206,7 +220,7 @@
     justify-content: center;
     gap: 0.2rem;
     pointer-events: none;
-    z-index: 2;
+    z-index: 3;
     text-align: center;
     overflow: hidden;
     transform: translateZ(0);

@@ -28,7 +28,8 @@ const DEFAULT_WIDGETS_PRIMARY = {
   conninfo: { x: 82, y: 52, w: 16.5, h: 23 },
   calendar: { x: 66, y: 2, w: 15, h: 38 },
   drives: { x: 66, y: 42, w: 15, h: 38 },
-  filesearch: { x: 18, y: 82, w: 47, h: 16 }
+  filesearch: { x: 18, y: 82, w: 47, h: 16 },
+  dock: { x: 25, y: 94, w: 50, h: 6, locked: true }
 };
 
 // Plugins only default on primary — secondary starts empty.
@@ -53,7 +54,8 @@ const PANEL_META = {
   cassette: { title: "音樂磁帶", box: { x: 28, y: 28, w: 36, h: 38 } },
   ddj: { title: "DDJ-1000", box: { x: 8, y: 6, w: 84, h: 86 } },
   cpuRail: { title: "CPU 供電路徑", box: { x: 20, y: 28, w: 42, h: 40 } },
-  calculator: { title: "計算器", box: { x: 40, y: 18, w: 18, h: 48 } }
+  calculator: { title: "計算器", box: { x: 40, y: 18, w: 18, h: 48 } },
+  dock: { title: "底部 Dock", box: { x: 25, y: 94, w: 50, h: 6 } }
 };
 
 const MACOS_TAGS = [
@@ -109,7 +111,10 @@ const state = {
   cockpitMatrixTimer: null,
   cassetteRaf: null,
   ddjRaf: null,
-  ddjResizeObs: null
+  ddjResizeObs: null,
+  cpuRailRaf: null,
+  dockTimer: null,
+  dockRaf: null
 };
 
 function defaultWidgets() {
@@ -311,6 +316,8 @@ function panelBody(id) {
       return window.cpuRailPanel?.bodyHtml?.() || `<div class="path-empty">CPU 供電路徑模組未載入</div>`;
     case "calculator":
       return window.calculatorPanel?.bodyHtml?.() || `<div class="path-empty">計算器模組未載入</div>`;
+    case "dock":
+      return window.dockPanel?.bodyHtml?.() || `<div class="path-empty">底部 Dock 模組未載入</div>`;
     default:
       return "";
   }
@@ -425,6 +432,8 @@ function pointHitsHud(x, y) {
     // ignore
   }
   for (const node of document.querySelectorAll(HUD_HIT_SEL)) {
+    // Dock backdrop is decorative / click-through (under transparent taskbar).
+    if (node.classList?.contains("dock-bare") || node.id === "card_dock") continue;
     const r = node.getBoundingClientRect();
     if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return true;
   }
@@ -523,7 +532,7 @@ function bindDesktopIconClicks() {
   let lastAt = 0;
   const runActivate = (icon, ctrl) => {
     if (!icon) return;
-    holdOverlayHits(1500);
+    holdOverlayHits(500);
     activateDesktopItem(itemFromDeskNode(icon), { ctrl });
   };
   // Prefer native detail===2; also accept a timed second click (some overlay builds drop detail).
@@ -583,11 +592,10 @@ function activateDesktopItem(item, { ctrl = false } = {}) {
   window.edex?.setFileDragArmed?.(false);
   window.edex?.cancelFileDragPrepare?.();
   hideFileDragGhost();
-  holdOverlayHits(1500);
+  holdOverlayHits(500);
   const folder = resolveFolderForTab(item);
   if (ctrl) {
     if (folder) {
-      toast(`正在加入標籤「${folder.name || folderTabTitle(folder.path)}」`);
       openFolderInDesktopTab(folder);
       return;
     }
@@ -600,15 +608,11 @@ function activateDesktopItem(item, { ctrl = false } = {}) {
     return;
   }
   const title = folder?.name || itemLabel(item) || "項目";
-  toast(`正在開啟「${title}」`);
+  // Fire-and-forget: no “正在開啟” toast; only report hard failures.
   Promise.resolve(window.edex.openPath(openPath))
     .then((result) => {
       if (result && result.ok === false) {
         toast(result.message || `無法開啟「${title}」`);
-        return;
-      }
-      if (result?.path && result.path !== openPath) {
-        toast(`已開啟「${title}」`);
       }
     })
     .catch((err) => {
@@ -1692,9 +1696,10 @@ function styleFromBox(box) {
 function panelHtml(id) {
   if (!state.layout[id] || !PANEL_META[id] || id === "status") return "";
   const locked = Boolean(state.layout[id].locked);
-  const extra = id === "clock" ? " clock-bare" : "";
+  const extra = id === "clock" ? " clock-bare" : id === "dock" ? " dock-bare" : "";
+  const forceLocked = locked || id === "dock";
   return `
-    <section class="hud-card${extra}${locked ? " locked" : ""}" id="card_${id}" data-panel-id="${id}" style="${styleFromBox(state.layout[id])}">
+    <section class="hud-card${extra}${forceLocked ? " locked" : ""}" id="card_${id}" data-panel-id="${id}" style="${styleFromBox(state.layout[id])}">
       <h3 class="card-title">
         <span class="card-title-text">${PANEL_META[id].title}</span>
         ${cardToolsHtml()}
@@ -2242,6 +2247,10 @@ function closePanel(id) {
     state.ddjResizeObs = null;
   }
   if (id === "cpuRail") {
+    if (state.cpuRailRaf) {
+      cancelAnimationFrame(state.cpuRailRaf);
+      state.cpuRailRaf = null;
+    }
     if (state.cpuRailTimer) {
       clearInterval(state.cpuRailTimer);
       state.cpuRailTimer = null;
@@ -2252,6 +2261,11 @@ function closePanel(id) {
       document.removeEventListener("visibilitychange", state.cpuRailVisHandler);
       state.cpuRailVisHandler = null;
     }
+  }
+  if (id === "dock") {
+    window.dockPanel?.unbind?.(state);
+    state.settings = { ...state.settings, dockEnabled: false };
+    window.edex?.saveSettings?.({ dockEnabled: false }).catch?.(() => {});
   }
   delete state.layout[id];
   document.querySelectorAll(`#card_${id}, [data-panel-id="${id}"]`).forEach((el) => el.remove());
@@ -2288,8 +2302,52 @@ function ensureDesktopCard() {
   toast("已添加桌面容器");
 }
 
+function dockEnabled() {
+  return state.primary && state.settings?.dockEnabled !== false;
+}
+
+function syncDockLayout(enabled) {
+  if (!state.primary || !PANEL_META.dock) {
+    if (state.layout.dock) delete state.layout.dock;
+    window.dockPanel?.unbind?.(state);
+    return;
+  }
+  if (enabled) {
+    if (!state.layout.dock) {
+      state.layout.dock = { ...PANEL_META.dock.box, locked: true };
+    } else {
+      state.layout.dock = { ...state.layout.dock, locked: true };
+    }
+  } else if (state.layout.dock) {
+    delete state.layout.dock;
+    window.dockPanel?.unbind?.(state);
+  }
+}
+
+async function setDockEnabled(on) {
+  if (!state.primary) {
+    toast("底部 Dock 僅主螢幕可用");
+    return;
+  }
+  const enabled = Boolean(on);
+  state.settings = { ...state.settings, dockEnabled: enabled };
+  syncDockLayout(enabled);
+  try {
+    await window.edex.saveSettings({ dockEnabled: enabled });
+  } catch {
+    // keep local
+  }
+  await persistLayout();
+  rebuildWorkspace();
+  toast(enabled ? "已開啟底部 Dock 背景" : "已關閉底部 Dock");
+}
+
 function addPanel(id) {
   if (!PANEL_META[id]) return;
+  if (id === "dock") {
+    setDockEnabled(true);
+    return;
+  }
   if (state.layout[id]) {
     toast("此顯示器已有該插件");
     return;
@@ -2304,13 +2362,50 @@ function openAddPicker() {
   document.getElementById("addPickerModal")?.remove();
   document.getElementById("addPicker")?.closest(".modal_popup")?.remove();
   keepAddPicker = true;
-  const missing = Object.keys(PANEL_META).filter((id) => id !== "status" && !state.layout[id]);
+  // Dock is toggled separately — not listed as a placeable panel.
+  const missing = Object.keys(PANEL_META).filter((id) => {
+    if (id === "status" || id === "dock" || state.layout[id]) return false;
+    return true;
+  });
   const deskDisabled = !state.primary || state.desktopEnabled !== false;
+  const dockOn = dockEnabled();
+  const dockFrame = String(state.settings?.dockFrameStyle || "rounded");
+  const dockW = window.dockPanel?.dockWidth?.(state)
+    ?? (Number(state.settings?.dockWidth) || 720);
+  const dockH = window.dockPanel?.dockHeight?.(state)
+    ?? (Number(state.settings?.dockHeight) || 72);
   const modal = document.createElement("div");
   modal.id = "addPickerModal";
   modal.className = "modal_popup info";
   modal.innerHTML = `
     <h1>添加容器</h1>
+    <h2>插件開關</h2>
+    <div class="action-row" style="align-items:center;gap:0.8rem;flex-wrap:wrap;">
+      ${state.primary
+        ? `<label style="display:inline-flex;align-items:center;gap:0.45rem;cursor:pointer;">
+            <input type="checkbox" id="toggle-dock" ${dockOn ? "checked" : ""}>
+            <span>底部 Dock（貼螢幕底邊）</span>
+          </label>
+          <label style="display:inline-flex;align-items:center;gap:0.35rem;opacity:${dockOn ? 1 : 0.45};">
+            <span>外框</span>
+            <select id="dock-frame-style" ${dockOn ? "" : "disabled"}>
+              <option value="rounded" ${dockFrame === "rounded" ? "selected" : ""}>圓角</option>
+              <option value="trapezoid" ${dockFrame === "trapezoid" ? "selected" : ""}>梯形</option>
+              <option value="rect" ${dockFrame === "rect" ? "selected" : ""}>直角</option>
+            </select>
+          </label>
+          <label style="display:inline-flex;align-items:center;gap:0.35rem;opacity:${dockOn ? 1 : 0.45};">
+            <span>寬度</span>
+            <input id="dock-width" type="number" min="200" max="2400" step="10" value="${dockW}" ${dockOn ? "" : "disabled"} style="width:5.5rem;">
+            <span>px</span>
+          </label>
+          <label style="display:inline-flex;align-items:center;gap:0.35rem;opacity:${dockOn ? 1 : 0.45};">
+            <span>高度</span>
+            <input id="dock-height" type="number" min="40" max="160" step="2" value="${dockH}" ${dockOn ? "" : "disabled"} style="width:4.5rem;">
+            <span>px</span>
+          </label>`
+        : `<span style="opacity:.6">底部 Dock 僅主顯示器</span>`}
+    </div>
     <h2>插件面板${state.primary ? "" : "（副螢幕可選加，預設不帶插件）"}</h2>
     <div class="action-row" id="addPicker">
       ${missing.length
@@ -2337,6 +2432,23 @@ function openAddPicker() {
     keepAddPicker = false;
     modal.remove();
   };
+  modal.querySelector("#toggle-dock")?.addEventListener("change", (event) => {
+    setDockEnabled(event.target.checked);
+  });
+  modal.querySelector("#dock-frame-style")?.addEventListener("change", (event) => {
+    window.dockPanel?.setFrameStyle?.(state, event.target.value);
+    toast(`Dock 外框：${event.target.selectedOptions?.[0]?.text || event.target.value}`);
+  });
+  const applyDockSizeFromInputs = () => {
+    const wEl = modal.querySelector("#dock-width");
+    const hEl = modal.querySelector("#dock-height");
+    window.dockPanel?.setSize?.(state, {
+      width: Number(wEl?.value),
+      height: Number(hEl?.value)
+    });
+  };
+  modal.querySelector("#dock-width")?.addEventListener("change", applyDockSizeFromInputs);
+  modal.querySelector("#dock-height")?.addEventListener("change", applyDockSizeFromInputs);
   modal.querySelectorAll("[data-add-panel]").forEach((btn) => {
     btn.onclick = () => {
       addPanel(btn.dataset.addPanel);
@@ -2372,6 +2484,10 @@ function stopPluginRuntimes() {
   }
   try { state.ddjResizeObs?.disconnect?.(); } catch { /* ignore */ }
   state.ddjResizeObs = null;
+  if (state.cpuRailRaf) {
+    cancelAnimationFrame(state.cpuRailRaf);
+    state.cpuRailRaf = null;
+  }
   if (state.cpuRailTimer) {
     clearInterval(state.cpuRailTimer);
     state.cpuRailTimer = null;
@@ -2383,6 +2499,11 @@ function stopPluginRuntimes() {
     state.cpuRailVisHandler = null;
   }
   window.cursorChatPanel?.unbind?.(state);
+  window.dockPanel?.unbind?.(state);
+  if (state.dockRaf) {
+    cancelAnimationFrame(state.dockRaf);
+    state.dockRaf = null;
+  }
 }
 
 function buildLayout() {
@@ -2554,6 +2675,8 @@ function bindPluginPanels() {
   if (state.layout.ddj) window.ddjPanel?.bind?.(state);
   if (state.layout.cpuRail) window.cpuRailPanel?.bind?.(state);
   if (state.layout.calculator) window.calculatorPanel?.bind?.(state);
+  if (state.layout.dock && state.primary) window.dockPanel?.bind?.(state);
+  else window.dockPanel?.unbind?.(state);
 }
 
 function updateDesktopViewToggle() {
@@ -4392,6 +4515,22 @@ function openSettings() {
         <td><input id="set-snap" type="checkbox" ${state.settings.snapWidgets !== false ? "checked" : ""}></td>
       </tr>
       <tr>
+        <td>底部 Dock</td>
+        <td>主螢幕底邊背景條；寬度跟隨任務欄圖示；不遮擋點擊</td>
+        <td><input id="set-dock" type="checkbox" ${!state.primary ? "disabled" : ""} ${dockEnabled() ? "checked" : ""}></td>
+      </tr>
+      <tr>
+        <td>Dock 外框</td>
+        <td>圓角 / 梯形 / 直角；邊框帶電路發光點</td>
+        <td>
+          <select id="set-dock-frame" ${!state.primary || !dockEnabled() ? "disabled" : ""}>
+            <option value="rounded" ${(state.settings?.dockFrameStyle || "rounded") === "rounded" ? "selected" : ""}>圓角</option>
+            <option value="trapezoid" ${state.settings?.dockFrameStyle === "trapezoid" ? "selected" : ""}>梯形</option>
+            <option value="rect" ${state.settings?.dockFrameStyle === "rect" ? "selected" : ""}>直角</option>
+          </select>
+        </td>
+      </tr>
+      <tr>
         <td>網格大小</td>
         <td>以主顯示器為準，所有顯示器使用同一格距（像素）</td>
         <td><input id="set-grid" type="number" min="12" max="96" step="1" value="${settingsGridSize()}"></td>
@@ -4533,6 +4672,14 @@ function openSettings() {
     applyUiMetrics();
   });
 
+  modal.querySelector("#set-dock")?.addEventListener("change", (event) => {
+    setDockEnabled(event.target.checked);
+    const frameSel = modal.querySelector("#set-dock-frame");
+    if (frameSel) frameSel.disabled = !event.target.checked || !state.primary;
+  });
+  modal.querySelector("#set-dock-frame")?.addEventListener("change", (event) => {
+    window.dockPanel?.setFrameStyle?.(state, event.target.value);
+  });
   modal.querySelector("#set-cancel").onclick = () => {
     state.settings = { ...state.settings, layoutMode: prevLayoutMode, uiScale: prevUiScale };
     applyUiMetrics();
@@ -4601,8 +4748,17 @@ function openSettings() {
     const searchFontValue = Number.isFinite(searchFontRaw)
       ? Math.max(8, Math.min(72, Math.round(searchFontRaw)))
       : 12;
+    const dockEnabledValue = state.primary
+      ? Boolean(modal.querySelector("#set-dock")?.checked)
+      : false;
+    const dockFrameValue = String(modal.querySelector("#set-dock-frame")?.value || state.settings?.dockFrameStyle || "rounded");
+    state.settings = { ...state.settings, dockEnabled: dockEnabledValue, dockFrameStyle: dockFrameValue };
+    syncDockLayout(dockEnabledValue);
+    window.dockPanel?.setFrameStyle?.(state, dockFrameValue);
     const result = await window.edex.saveSettings({
       snapWidgets: modal.querySelector("#set-snap").checked,
+      dockEnabled: dockEnabledValue,
+      dockFrameStyle: dockFrameValue,
       gridSize: gridSizeValue,
       clockScale: clockScaleValue,
       clockLedColor: clockLedValue,
@@ -4653,6 +4809,10 @@ function receiveWidget(widget) {
   if (!widget?.type) return;
 
   if (widget.type === "panel" && widget.id && widget.id !== "status" && PANEL_META[widget.id]) {
+    if (widget.id === "dock") {
+      setDockEnabled(state.primary);
+      return;
+    }
     if (state.layout[widget.id]) {
       toast("此顯示器已有該插件");
       return;
@@ -4861,6 +5021,9 @@ window.addEventListener("keydown", (event) => {
   } else {
     state.layout = defaults;
   }
+
+  // Dock is a primary-only backdrop driven by settings.dockEnabled (default on).
+  syncDockLayout(dockEnabled());
 
   // Drop retired panels from memory + disk so they cannot reappear.
   let strippedRemoved = false;

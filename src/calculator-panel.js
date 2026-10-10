@@ -9,7 +9,7 @@
           <div class="calc-display" id="calc_display">0</div>
         </div>
         <div class="calc-pad" id="calc_pad">
-          <button type="button" data-calc="clear" class="calc-fn">C</button>
+          <button type="button" data-calc="clear" class="calc-fn calc-clear">C</button>
           <button type="button" data-calc="back" class="calc-fn">⌫</button>
           <button type="button" data-calc="pct" class="calc-fn">%</button>
           <button type="button" data-calc="op" data-op="/" class="calc-op">÷</button>
